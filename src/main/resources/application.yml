@@ -1,0 +1,45 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: news-distribution-api
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.SQLServerDialect
+  jackson:
+    time-zone: Asia/Ho_Chi_Minh
+    date-format: yyyy-MM-dd'T'HH:mm:ss
+
+# DB A — WinForm (READ ONLY — KHÔNG ĐƯỢC THAY ĐỔI SCHEMA)
+datasource-a:
+  url: jdbc:sqlserver://localhost:1234;databaseName=Thanhnien;encrypt=true;trustServerCertificate=true;sendStringParametersAsUnicode=true
+  username: ${DB_A_USER:sa}
+  password: ${DB_A_PASS:YourPassword123}
+  driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+
+# DB B — Website (JPA + JdbcTemplate)
+datasource-b:
+  url: jdbc:sqlserver://localhost:1234;databaseName=NewsDistributionWeb;encrypt=true;trustServerCertificate=true;sendStringParametersAsUnicode=true
+  username: ${DB_B_USER:sa}
+  password: ${DB_B_PASS:YourPassword123}
+  driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+
+# DB C — Master (JdbcTemplate READ ONLY từ API)
+datasource-c:
+  url: jdbc:sqlserver://localhost:1234;databaseName=NewsDistributionMaster;encrypt=true;trustServerCertificate=true;sendStringParametersAsUnicode=true
+  username: ${DB_C_USER:sa}
+  password: ${DB_C_PASS:YourPassword123}
+  driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+
+jwt:
+  secret: ${JWT_SECRET:NewsDistribution2026SecretKeyMustBe256BitsLong!!}
+  access-token-expiry-ms: 3600000
+  refresh-token-expiry-ms: 604800000
+
+sync:
+  interval-ms: 30000

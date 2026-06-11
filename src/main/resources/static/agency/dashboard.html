@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agency Dashboard — News Distribution</title>
+  <link rel="stylesheet" href="/css/dashboard-shared.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/js/api.js"></script>
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <a href="/agency/dashboard.html" class="sidebar-brand">
+      <img src="/images/logo.png" alt="Logo" class="sidebar-brand-logo">
+      <div class="sidebar-brand-text">News<span>Distribution</span></div>
+    </a>
+
+    <div class="nav-section">
+      <div class="nav-section-label">Đại lý</div>
+      <div class="nav-links">
+        <a href="/agency/dashboard.html" class="nav-item active">
+          <i data-lucide="layout-dashboard" class="nav-icon"></i>
+          <span>Dashboard</span>
+        </a>
+        <a href="/agency/publications.html" class="nav-item">
+          <i data-lucide="newspaper" class="nav-icon"></i>
+          <span>Đặt mua báo</span>
+        </a>
+        <a href="/agency/orders.html" class="nav-item">
+          <i data-lucide="shopping-cart" class="nav-icon"></i>
+          <span>Đơn hàng của tôi</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="nav-logout">
+      <button class="nav-item" onclick="logout()">
+        <i data-lucide="log-out" class="nav-icon"></i>
+        <span>Đăng xuất</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1 id="welcome-message">Xin chào, đại lý</h1>
+        <p class="page-subtitle">Hệ thống đặt báo trực tuyến hỗ trợ thanh toán & phát hành</p>
+      </div>
+      
+      <div class="user-profile-pill">
+        <div class="user-avatar" id="agency-avatar">D</div>
+        <span id="agency-makh">—</span>
+      </div>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="stats-grid">
+      <div class="stat-card blue">
+        <div class="stat-icon-box blue">
+          <i data-lucide="wallet"></i>
+        </div>
+        <div class="stat-info">
+          <div class="stat-label">Doanh Số Đã Phát Hành</div>
+          <div class="stat-value" id="val-tien">—</div>
+        </div>
+      </div>
+      <div class="stat-card purple">
+        <div class="stat-icon-box purple">
+          <i data-lucide="receipt"></i>
+        </div>
+        <div class="stat-info">
+          <div class="stat-label">Tổng Số Hóa Đơn</div>
+          <div class="stat-value" id="val-hoadon">—</div>
+        </div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-icon-box green">
+          <i data-lucide="package-check"></i>
+        </div>
+        <div class="stat-info">
+          <div class="stat-label">Tổng Số Báo Đã Nhận</div>
+          <div class="stat-value" id="val-bao">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Layout Grid -->
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">
+          <i data-lucide="file-text"></i>
+          Hóa đơn phát hành gần đây (Từ WinForm)
+        </div>
+      </div>
+      
+      <div style="overflow-x: auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Số Hóa Đơn</th>
+              <th>Ngày Phát Hành</th>
+              <th>Tổng Giá Trị</th>
+              <th>Trạng Thái Thanh Toán</th>
+            </tr>
+          </thead>
+          <tbody id="bills-table-body">
+            <tr>
+              <td colspan="4" style="text-align: center; color: var(--text-muted);">Đang tải thông tin hóa đơn...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    lucide.createIcons();
+    requireAuth('AGENCY');
+
+    const tenHienThi = localStorage.getItem('tenHienThi') || 'Đại lý';
+    const makh = localStorage.getItem('makh') || '';
+    
+    document.getElementById('welcome-message').textContent = `Đại lý: ${tenHienThi}`;
+    document.getElementById('agency-makh').textContent = `Mã KH: ${makh}`;
+    document.getElementById('agency-avatar').textContent = tenHienThi.charAt(0).toUpperCase();
+
+    async function loadDashboard() {
+      const data = await apiGet('/agency/dashboard');
+      if (data) {
+        document.getElementById('val-tien').textContent = data.tongTien.toLocaleString('vi-VN') + ' đ';
+        document.getElementById('val-hoadon').textContent = data.soHoaDon.toLocaleString('vi-VN');
+        document.getElementById('val-bao').textContent = data.tongBao.toLocaleString('vi-VN') + ' tờ';
+
+        const tbody = document.getElementById('bills-table-body');
+        if (data.donGanNhat.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Đại lý chưa phát sinh hóa đơn Winform nào.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = data.donGanNhat.map(b => {
+          const date = new Date(b.ngayLapPhieu).toLocaleDateString('vi-VN');
+          const isPaid = b.thanhToan === true || b.thanhToan === 1 || b.thanhToan === "1";
+          const badgeClass = isPaid ? 'badge-success' : 'badge-pending';
+          const badgeText = isPaid ? 'Đã thanh toán' : 'Chưa thanh toán';
+          const badgeIcon = isPaid ? 'check-circle' : 'clock';
+          
+          return `
+            <tr>
+              <td><strong>${b.sohd}</strong></td>
+              <td>${date}</td>
+              <td style="color: var(--accent-primary); font-weight:600">${b.tong_tien.toLocaleString('vi-VN')} đ</td>
+              <td><span class="badge ${badgeClass}"><i data-lucide="${badgeIcon}" style="width:12px;height:12px"></i> ${badgeText}</span></td>
+            </tr>
+          `;
+        }).join('');
+        lucide.createIcons();
+      }
+    }
+
+    loadDashboard();
+  </script>
+</body>
+</html>

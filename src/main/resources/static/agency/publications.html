@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Publications — News Distribution</title>
+  <link rel="stylesheet" href="/css/dashboard-shared.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/js/api.js"></script>
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <a href="/agency/dashboard.html" class="sidebar-brand">
+      <img src="/images/logo.png" alt="Logo" class="sidebar-brand-logo">
+      <div class="sidebar-brand-text">News<span>Distribution</span></div>
+    </a>
+
+    <div class="nav-section">
+      <div class="nav-section-label">Đại lý</div>
+      <div class="nav-links">
+        <a href="/agency/dashboard.html" class="nav-item">
+          <i data-lucide="layout-dashboard" class="nav-icon"></i>
+          <span>Dashboard</span>
+        </a>
+        <a href="/agency/publications.html" class="nav-item active">
+          <i data-lucide="newspaper" class="nav-icon"></i>
+          <span>Đặt mua báo</span>
+        </a>
+        <a href="/agency/orders.html" class="nav-item">
+          <i data-lucide="shopping-cart" class="nav-icon"></i>
+          <span>Đơn hàng của tôi</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="nav-logout">
+      <button class="nav-item" onclick="logout()">
+        <i data-lucide="log-out" class="nav-icon"></i>
+        <span>Đăng xuất</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1>Danh mục báo phát hành</h1>
+        <p class="page-subtitle">Chọn đầu báo và số lượng để tạo đơn hàng đặt mới</p>
+      </div>
+      <div class="user-profile-pill">
+        <div class="user-avatar" id="agency-avatar">D</div>
+        <span id="agency-makh">—</span>
+      </div>
+    </div>
+
+    <div class="layout-columns-wide">
+      <!-- Left Column: Publications List -->
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">
+            <i data-lucide="book-open"></i>
+            Danh sách báo đang phát hành
+          </div>
+        </div>
+        
+        <div style="overflow-x: auto;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Mã</th>
+                <th>Tên Báo</th>
+                <th>Giá Bán</th>
+                <th>Đơn Vị</th>
+                <th>Lịch Phát Hành</th>
+                <th>Hành Động</th>
+              </tr>
+            </thead>
+            <tbody id="pub-table-body">
+              <tr>
+                <td colspan="6" style="text-align: center; color: var(--text-muted);">Đang tải danh sách đầu báo...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Right Column: Order Form / Cart -->
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">
+            <i data-lucide="shopping-bag"></i>
+            Giỏ đơn hàng đặt mới
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">Từ ngày phát hành:</label>
+          <input type="date" id="order-fromDate" class="form-input">
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">Đến ngày phát hành:</label>
+          <input type="date" id="order-toDate" class="form-input">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Ghi chú:</label>
+          <textarea id="order-note" class="form-textarea" rows="2" placeholder="Ví dụ: Đặt bổ sung số lượng..."></textarea>
+        </div>
+
+        <div style="margin-top: 1.25rem;">
+          <div style="font-size:0.78rem; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.5rem; display:flex; align-items:center; gap:0.4rem;">
+            <i data-lucide="list-checks" style="width:14px;height:14px"></i>
+            Chi tiết ấn phẩm chọn:
+          </div>
+          <div id="cart-list" style="margin-top: 0.5rem;">
+            <p style="color:var(--text-muted); font-size:0.85rem; text-align:center; padding:1.5rem 0;">Chưa chọn đầu báo nào. Vui lòng bấm "Chọn mua" ở danh mục.</p>
+          </div>
+        </div>
+
+        <div class="cart-total-row">
+          <span>Tổng tiền tạm tính:</span>
+          <span id="cart-total" style="color: var(--accent-primary);">0 đ</span>
+        </div>
+
+        <button class="order-btn" onclick="submitOrder()">
+          <i data-lucide="send"></i>
+          Gửi đơn hàng đặt báo
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    lucide.createIcons();
+    requireAuth('AGENCY');
+
+    const tenHienThi = localStorage.getItem('tenHienThi') || 'Đại lý';
+    const makh = localStorage.getItem('makh') || '';
+    document.getElementById('agency-makh').textContent = `Mã KH: ${makh}`;
+    document.getElementById('agency-avatar').textContent = tenHienThi.charAt(0).toUpperCase();
+
+    // Default dates
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const nextWeek = new Date(today);
+    nextWeek.setDate(nextWeek.getDate() + 7);
+
+    document.getElementById('order-fromDate').value = tomorrow.toISOString().split('T')[0];
+    document.getElementById('order-toDate').value = nextWeek.toISOString().split('T')[0];
+
+    let publicationsData = [];
+    let cart = [];
+
+    async function loadPublications() {
+      const data = await apiGet('/agency/publications');
+      if (data) {
+        publicationsData = data;
+        const tbody = document.getElementById('pub-table-body');
+        if (data.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Không có báo nào được đăng ký.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = data.map(b => {
+          return `
+            <tr>
+              <td><strong>${b.maBao}</strong></td>
+              <td style="font-weight: 500;">${b.ten}</td>
+              <td style="color: var(--accent-primary); font-weight:600">${b.donGia.toLocaleString('vi-VN')} đ</td>
+              <td>${b.DVT || 'Tờ'}</td>
+              <td>
+                <div class="weekday-indicator">
+                  <div class="day-dot ${b.thu2 ? 'active' : ''}">T2</div>
+                  <div class="day-dot ${b.thu3 ? 'active' : ''}">T3</div>
+                  <div class="day-dot ${b.thu4 ? 'active' : ''}">T4</div>
+                  <div class="day-dot ${b.thu5 ? 'active' : ''}">T5</div>
+                  <div class="day-dot ${b.thu6 ? 'active' : ''}">T6</div>
+                  <div class="day-dot ${b.thu7 ? 'active' : ''}">T7</div>
+                  <div class="day-dot ${b.thu1 ? 'active' : ''}">CN</div>
+                </div>
+              </td>
+              <td>
+                <button class="add-to-cart-btn" onclick="addToCart('${b.maBao}')">
+                  <i data-lucide="plus-circle" style="width:14px;height:14px"></i>
+                  Chọn mua
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+        lucide.createIcons();
+      }
+    }
+
+    function addToCart(maBao) {
+      const pub = publicationsData.find(p => p.maBao === maBao);
+      if (!pub) return;
+
+      const existing = cart.find(item => item.maBao === maBao);
+      if (existing) {
+        existing.soLuong += 10;
+      } else {
+        cart.push({
+          maBao: pub.maBao,
+          ten: pub.ten,
+          donGia: pub.donGia,
+          soLuong: 10
+        });
+      }
+      renderCart();
+    }
+
+    function updateQty(maBao, qty) {
+      const item = cart.find(item => item.maBao === maBao);
+      if (item) {
+        item.soLuong = Math.max(1, parseInt(qty) || 1);
+        renderCart();
+      }
+    }
+
+    function removeFromCart(maBao) {
+      cart = cart.filter(item => item.maBao !== maBao);
+      renderCart();
+    }
+
+    function renderCart() {
+      const container = document.getElementById('cart-list');
+      if (cart.length === 0) {
+        container.innerHTML = `<p style="color:var(--text-muted); font-size:0.85rem; text-align:center; padding:1.5rem 0;">Chưa chọn đầu báo nào. Vui lòng bấm "Chọn mua" ở danh mục.</p>`;
+        document.getElementById('cart-total').textContent = '0 đ';
+        return;
+      }
+
+      let total = 0;
+      container.innerHTML = cart.map(item => {
+        const itemTotal = item.donGia * item.soLuong;
+        total += itemTotal;
+        return `
+          <div class="cart-item">
+            <div style="flex:1;">
+              <div class="cart-item-name">${item.ten}</div>
+              <small style="color: var(--text-muted)">${item.donGia.toLocaleString('vi-VN')} đ</small>
+            </div>
+            <div style="display:flex; align-items:center; gap:0.5rem;">
+              <input type="number" class="cart-qty-input" value="${item.soLuong}" onchange="updateQty('${item.maBao}', this.value)">
+              <button class="cart-item-remove" onclick="removeFromCart('${item.maBao}')">Xóa</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('cart-total').textContent = total.toLocaleString('vi-VN') + ' đ';
+    }
+
+    async function submitOrder() {
+      if (cart.length === 0) {
+        alert('Vui lòng chọn ít nhất một đầu báo để đặt!');
+        return;
+      }
+
+      const body = {
+        tuNgay: document.getElementById('order-fromDate').value,
+        denNgay: document.getElementById('order-toDate').value,
+        ghiChu: document.getElementById('order-note').value,
+        items: cart.map(item => ({
+          maBao: item.maBao,
+          soLuong: item.soLuong
+        }))
+      };
+
+      const res = await apiPost('/agency/orders', body);
+      if (res && res.orderCode) {
+        alert(`Đặt đơn hàng thành công! Mã đơn: ${res.orderCode}`);
+        cart = [];
+        renderCart();
+        window.location.href = '/agency/orders.html';
+      } else {
+        alert('Đã xảy ra lỗi khi tạo đơn hàng.');
+      }
+    }
+
+    loadPublications();
+  </script>
+</body>
+</html>

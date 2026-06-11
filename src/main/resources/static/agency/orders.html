@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Orders — News Distribution</title>
+  <link rel="stylesheet" href="/css/dashboard-shared.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/js/api.js"></script>
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <a href="/agency/dashboard.html" class="sidebar-brand">
+      <img src="/images/logo.png" alt="Logo" class="sidebar-brand-logo">
+      <div class="sidebar-brand-text">News<span>Distribution</span></div>
+    </a>
+
+    <div class="nav-section">
+      <div class="nav-section-label">Đại lý</div>
+      <div class="nav-links">
+        <a href="/agency/dashboard.html" class="nav-item">
+          <i data-lucide="layout-dashboard" class="nav-icon"></i>
+          <span>Dashboard</span>
+        </a>
+        <a href="/agency/publications.html" class="nav-item">
+          <i data-lucide="newspaper" class="nav-icon"></i>
+          <span>Đặt mua báo</span>
+        </a>
+        <a href="/agency/orders.html" class="nav-item active">
+          <i data-lucide="shopping-cart" class="nav-icon"></i>
+          <span>Đơn hàng của tôi</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="nav-logout">
+      <button class="nav-item" onclick="logout()">
+        <i data-lucide="log-out" class="nav-icon"></i>
+        <span>Đăng xuất</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1>Lịch sử đặt đơn online</h1>
+        <p class="page-subtitle">Xem lại các đơn hàng đã gửi và trạng thái xử lý</p>
+      </div>
+      <div class="user-profile-pill">
+        <div class="user-avatar" id="agency-avatar">D</div>
+        <span id="agency-makh">—</span>
+      </div>
+    </div>
+
+    <div class="layout-columns">
+      <!-- Left Column: Orders list -->
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">
+            <i data-lucide="clipboard-list"></i>
+            Danh sách đơn đặt hàng
+          </div>
+          <button class="btn-refresh" onclick="loadOrders()">
+            <i data-lucide="refresh-cw"></i>
+            Làm mới
+          </button>
+        </div>
+
+        <div style="overflow-x: auto;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Mã Đơn</th>
+                <th>Từ Ngày</th>
+                <th>Đến Ngày</th>
+                <th>Trạng Thái</th>
+                <th>Mã WinForm</th>
+              </tr>
+            </thead>
+            <tbody id="orders-table-body">
+              <tr>
+                <td colspan="5" style="text-align: center; color: var(--text-muted);">Đang tải danh sách đơn đặt...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Right Column: Order details -->
+      <div class="section-card" id="detail-card" style="display:none;">
+        <div class="section-header">
+          <div class="section-title">
+            <i data-lucide="file-search"></i>
+            Chi tiết đơn hàng
+          </div>
+        </div>
+        
+        <div style="margin-bottom: 1.5rem;">
+          <div class="detail-item"><strong>Mã đơn hàng:</strong> <span id="det-code" style="color:var(--accent-primary); font-weight:600">—</span></div>
+          <div class="detail-item"><strong>Khoảng thời gian:</strong> <span id="det-dates">—</span></div>
+          <div class="detail-item"><strong>Ngày đặt đơn:</strong> <span id="det-created">—</span></div>
+          <div class="detail-item"><strong>Trạng thái:</strong> <span id="det-status">—</span></div>
+          <div class="detail-item"><strong>Ghi chú:</strong> <span id="det-note">—</span></div>
+        </div>
+
+        <div style="font-size:0.78rem; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; display:flex; align-items:center; gap:0.4rem;">
+          <i data-lucide="list" style="width:14px;height:14px"></i>
+          Danh sách báo đặt:
+        </div>
+        <div id="detail-items-list" style="margin-top: 0.5rem;">
+          <!-- Items will load here -->
+        </div>
+
+        <div style="display:flex; justify-content:space-between; margin-top:1.5rem; padding-top:1rem; border-top:2px solid var(--border-light); font-weight:700; font-size:1.05rem;">
+          <span>Tổng giá trị đơn:</span>
+          <span id="det-total" style="color:var(--accent-primary)">0 đ</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    lucide.createIcons();
+    requireAuth('AGENCY');
+
+    const tenHienThi = localStorage.getItem('tenHienThi') || 'Đại lý';
+    const makh = localStorage.getItem('makh') || '';
+    document.getElementById('agency-makh').textContent = `Mã KH: ${makh}`;
+    document.getElementById('agency-avatar').textContent = tenHienThi.charAt(0).toUpperCase();
+
+    let ordersList = [];
+
+    async function loadOrders() {
+      const data = await apiGet('/agency/orders');
+      if (data && data.orders) {
+        ordersList = data.orders;
+        const tbody = document.getElementById('orders-table-body');
+        if (data.orders.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Đại lý chưa gửi đơn đặt hàng nào.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = data.orders.map(o => {
+          const from = new Date(o.tuNgay).toLocaleDateString('vi-VN');
+          const to = new Date(o.denNgay).toLocaleDateString('vi-VN');
+          
+          let badgeClass = 'badge-pending';
+          let statusText = 'Chờ duyệt';
+          let statusIcon = 'clock';
+          if (o.syncStatus === 'SYNCED') {
+            badgeClass = 'badge-synced';
+            statusText = 'Đã duyệt';
+            statusIcon = 'check-circle';
+          } else if (o.syncStatus === 'FAILED') {
+            badgeClass = 'badge-failed';
+            statusText = 'Lỗi sync';
+            statusIcon = 'x-circle';
+          }
+
+          return `
+            <tr onclick="showDetails(${o.id})" style="cursor:pointer">
+              <td><strong>${o.orderCode}</strong></td>
+              <td>${from}</td>
+              <td>${to}</td>
+              <td><span class="badge ${badgeClass}"><i data-lucide="${statusIcon}" style="width:12px;height:12px"></i> ${statusText}</span></td>
+              <td><code>${o.winformHdCode || '—'}</code></td>
+            </tr>
+          `;
+        }).join('');
+        lucide.createIcons();
+      }
+    }
+
+    function showDetails(id) {
+      const order = ordersList.find(o => o.id === id);
+      if (!order) return;
+
+      document.getElementById('detail-card').style.display = 'block';
+      document.getElementById('det-code').textContent = order.orderCode;
+      document.getElementById('det-dates').textContent = `${new Date(order.tuNgay).toLocaleDateString('vi-VN')} → ${new Date(order.denNgay).toLocaleDateString('vi-VN')}`;
+      
+      const createdTime = new Date(order.createdAt).toLocaleTimeString('vi-VN') + ' ' + new Date(order.createdAt).toLocaleDateString('vi-VN');
+      document.getElementById('det-created').textContent = createdTime;
+      
+      let badgeClass = 'badge-pending';
+      let statusText = 'Chờ duyệt';
+      let statusIcon = 'clock';
+      if (order.syncStatus === 'SYNCED') {
+        badgeClass = 'badge-synced';
+        statusText = 'Đã duyệt';
+        statusIcon = 'check-circle';
+      } else if (order.syncStatus === 'FAILED') {
+        badgeClass = 'badge-failed';
+        statusText = 'Lỗi sync';
+        statusIcon = 'x-circle';
+      }
+      document.getElementById('det-status').innerHTML = `<span class="badge ${badgeClass}"><i data-lucide="${statusIcon}" style="width:12px;height:12px"></i> ${statusText}</span>`;
+      document.getElementById('det-note').textContent = order.ghiChu || '—';
+
+      const itemsContainer = document.getElementById('detail-items-list');
+      let total = 0;
+      
+      itemsContainer.innerHTML = order.items.map(item => {
+        const itemTotal = item.donGia * item.soLuong;
+        total += itemTotal;
+        return `
+          <div class="detail-item">
+            <div>
+              <strong>${item.tenBao}</strong><br>
+              <small style="color:var(--text-muted)">${item.soLuong} tờ x ${item.donGia.toLocaleString('vi-VN')} đ</small>
+            </div>
+            <span style="font-weight:600; align-self:center;">${itemTotal.toLocaleString('vi-VN')} đ</span>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('det-total').textContent = total.toLocaleString('vi-VN') + ' đ';
+      lucide.createIcons();
+    }
+
+    loadOrders();
+  </script>
+</body>
+</html>

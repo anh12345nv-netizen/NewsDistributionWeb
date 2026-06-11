@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>News Distribution — Đăng ký Đại lý</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-gradient: linear-gradient(135deg, #090b11 0%, #151829 100%);
+      --accent-color: #00e5ff;
+      --accent-glow: rgba(0, 229, 255, 0.4);
+      --card-bg: rgba(26, 29, 43, 0.65);
+      --card-border: rgba(255, 255, 255, 0.07);
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --input-bg: rgba(17, 19, 30, 0.8);
+      --input-border: rgba(255, 255, 255, 0.1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Outfit', sans-serif;
+    }
+
+    body {
+      background: var(--bg-gradient);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-main);
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* Ambient background glows */
+    body::before {
+      content: '';
+      position: absolute;
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(0, 229, 255, 0.15) 0%, transparent 70%);
+      top: -100px;
+      left: -100px;
+      z-index: 0;
+    }
+
+    body::after {
+      content: '';
+      position: absolute;
+      width: 450px;
+      height: 450px;
+      background: radial-gradient(circle, rgba(138, 43, 226, 0.12) 0%, transparent 70%);
+      bottom: -150px;
+      right: -100px;
+      z-index: 0;
+    }
+
+    .container {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      max-width: 600px;
+      padding: 20px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 2.5rem;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4),
+        0 0 50px rgba(0, 229, 255, 0.03);
+    }
+
+    .logo-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 2rem;
+    }
+
+    h1 {
+      color: var(--text-main);
+      font-size: 1.6rem;
+      font-weight: 700;
+      text-align: center;
+      letter-spacing: -0.5px;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      margin-top: 0.25rem;
+      text-align: center;
+    }
+
+    .grid-form {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.2rem;
+    }
+
+    .form-group {
+      margin-bottom: 1.25rem;
+    }
+
+    .full-width {
+      grid-column: 1 / -1;
+    }
+
+    label {
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      font-weight: 500;
+      display: block;
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    input {
+      width: 100%;
+      padding: 0.85rem 1.2rem;
+      border-radius: 12px;
+      border: 1px solid var(--input-border);
+      background: var(--input-bg);
+      color: var(--text-main);
+      font-size: 0.95rem;
+      transition: all 0.25s ease;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: var(--accent-color);
+      box-shadow: 0 0 12px rgba(0, 229, 255, 0.15);
+      background: rgba(17, 19, 30, 0.95);
+    }
+
+    button {
+      width: 100%;
+      padding: 1rem;
+      background: linear-gradient(90deg, #00c8ff, #00e5ff);
+      color: #080a10;
+      border: none;
+      border-radius: 12px;
+      font-size: 1.05rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-top: 1rem;
+    }
+
+    button:hover {
+      background: linear-gradient(90deg, #00e5ff, #00ffd5);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 229, 255, 0.35);
+    }
+
+    .message {
+      text-align: center;
+      margin-top: 1rem;
+      min-height: 1.2rem;
+      font-weight: 500;
+    }
+    
+    .error { color: #ff5252; }
+    .success { color: #00e676; }
+
+    .login-link {
+      display: block;
+      text-align: center;
+      margin-top: 1.5rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+    
+    .login-link:hover {
+      color: var(--accent-color);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="card">
+      <div class="logo-container">
+        <h1 style="font-size: 1.8rem; font-weight: 800; text-transform: uppercase;">Đăng ký <span
+            style="background: linear-gradient(90deg, #00c8ff, #00ffd5); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Đại lý</span>
+        </h1>
+        <div class="subtitle">Đăng ký thông tin doanh nghiệp để điều phối hàng hóa</div>
+      </div>
+
+      <div class="grid-form">
+        <!-- Thông tin Đăng nhập -->
+        <div class="form-group">
+          <label for="username">Tên đăng nhập *</label>
+          <input type="text" id="username" placeholder="VD: daily01">
+        </div>
+        <div class="form-group">
+          <label for="password">Mật khẩu *</label>
+          <input type="password" id="password" placeholder="••••••••">
+        </div>
+        
+        <!-- Thông tin Doanh nghiệp -->
+        <div class="form-group full-width">
+          <label for="tenDoanhNghiep">Tên doanh nghiệp / Công ty *</label>
+          <input type="text" id="tenDoanhNghiep" placeholder="CÔNG TY CỔ PHẦN XYZ">
+        </div>
+        <div class="form-group">
+          <label for="maSoThue">Mã số thuế *</label>
+          <input type="text" id="maSoThue" placeholder="0312345678">
+        </div>
+        <div class="form-group">
+          <label for="soDienThoai">Số điện thoại *</label>
+          <input type="text" id="soDienThoai" placeholder="0909123456">
+        </div>
+        <div class="form-group full-width">
+          <label for="diaChi">Địa chỉ đăng ký kinh doanh *</label>
+          <input type="text" id="diaChi" placeholder="123 Nguyễn Văn Linh, Quận 7, TP.HCM">
+        </div>
+        <div class="form-group full-width">
+          <label for="email">Email liên hệ</label>
+          <input type="email" id="email" placeholder="contact@xyz.com">
+        </div>
+      </div>
+
+      <button onclick="doRegister()">Xác nhận Đăng ký</button>
+      <div class="message" id="msgBox"></div>
+      
+      <a href="/login.html" class="login-link">Đã có tài khoản? Quay lại đăng nhập</a>
+    </div>
+  </div>
+
+  <script>
+    async function doRegister() {
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      const tenDoanhNghiep = document.getElementById('tenDoanhNghiep').value.trim();
+      const maSoThue = document.getElementById('maSoThue').value.trim();
+      const soDienThoai = document.getElementById('soDienThoai').value.trim();
+      const diaChi = document.getElementById('diaChi').value.trim();
+      const email = document.getElementById('email').value.trim();
+      
+      const msgBox = document.getElementById('msgBox');
+      msgBox.className = 'message error';
+
+      if (!username || !password || !tenDoanhNghiep || !maSoThue || !soDienThoai || !diaChi) {
+        msgBox.textContent = 'Vui lòng điền các trường bắt buộc (*)';
+        return;
+      }
+
+      msgBox.textContent = 'Đang xử lý...';
+
+      try {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            username, 
+            password, 
+            tenHienThi: tenDoanhNghiep, 
+            email,
+            tenDoanhNghiep,
+            maSoThue,
+            diaChi,
+            soDienThoai
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          msgBox.textContent = data.error || 'Đăng ký thất bại';
+          return;
+        }
+
+        msgBox.className = 'message success';
+        msgBox.textContent = 'Đăng ký thành công! Đang chuyển hướng...';
+        
+        setTimeout(() => {
+          window.location.href = '/login.html';
+        }, 1500);
+        
+      } catch (e) {
+        msgBox.textContent = 'Lỗi kết nối tới máy chủ';
+      }
+    }
+  </script>
+</body>
+
+</html>

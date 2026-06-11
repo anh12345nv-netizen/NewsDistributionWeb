@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>News Distribution — Đăng nhập hệ thống</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-gradient: linear-gradient(135deg, #090b11 0%, #151829 100%);
+      --accent-color: #00e5ff;
+      --accent-glow: rgba(0, 229, 255, 0.4);
+      --card-bg: rgba(26, 29, 43, 0.65);
+      --card-border: rgba(255, 255, 255, 0.07);
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --input-bg: rgba(17, 19, 30, 0.8);
+      --input-border: rgba(255, 255, 255, 0.1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Outfit', sans-serif;
+    }
+
+    body {
+      background: var(--bg-gradient);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-main);
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Ambient background glows */
+    body::before {
+      content: '';
+      position: absolute;
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(0, 229, 255, 0.15) 0%, transparent 70%);
+      top: -100px;
+      left: -100px;
+      z-index: 0;
+    }
+
+    body::after {
+      content: '';
+      position: absolute;
+      width: 450px;
+      height: 450px;
+      background: radial-gradient(circle, rgba(138, 43, 226, 0.12) 0%, transparent 70%);
+      bottom: -150px;
+      right: -100px;
+      z-index: 0;
+    }
+
+    .container {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      max-width: 420px;
+      padding: 20px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 2.8rem 2.2rem;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4),
+        0 0 50px rgba(0, 229, 255, 0.03);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .card:hover {
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5),
+        0 0 60px rgba(0, 229, 255, 0.05);
+    }
+
+    .logo-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 2rem;
+    }
+
+    .logo-icon {
+      font-size: 2.8rem;
+      margin-bottom: 0.5rem;
+      filter: drop-shadow(0 0 10px var(--accent-glow));
+      animation: pulse 3s infinite ease-in-out;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        transform: scale(1);
+        filter: drop-shadow(0 0 8px var(--accent-glow));
+      }
+
+      50% {
+        transform: scale(1.05);
+        filter: drop-shadow(0 0 15px var(--accent-color));
+      }
+    }
+
+    h1 {
+      color: var(--text-main);
+      font-size: 1.6rem;
+      font-weight: 700;
+      text-align: center;
+      letter-spacing: -0.5px;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      margin-top: 0.25rem;
+      text-align: center;
+    }
+
+    .form-group {
+      margin-bottom: 1.25rem;
+    }
+
+    label {
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      font-weight: 500;
+      display: block;
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .input-wrapper {
+      position: relative;
+    }
+
+    input {
+      width: 100%;
+      padding: 0.85rem 1.2rem;
+      border-radius: 12px;
+      border: 1px solid var(--input-border);
+      background: var(--input-bg);
+      color: var(--text-main);
+      font-size: 0.95rem;
+      font-weight: 400;
+      transition: all 0.25s ease;
+      outline: none;
+    }
+
+    input::placeholder {
+      color: rgba(255, 255, 255, 0.2);
+    }
+
+    input:focus {
+      border-color: var(--accent-color);
+      box-shadow: 0 0 12px rgba(0, 229, 255, 0.15);
+      background: rgba(17, 19, 30, 0.95);
+    }
+
+    button {
+      width: 100%;
+      padding: 0.95rem;
+      background: linear-gradient(90deg, #00c8ff, #00e5ff);
+      color: #080a10;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(0, 229, 255, 0.25);
+      margin-top: 0.8rem;
+    }
+
+    button:hover {
+      background: linear-gradient(90deg, #00e5ff, #00ffd5);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 229, 255, 0.35);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .error {
+      color: #ff5252;
+      font-size: 0.85rem;
+      text-align: center;
+      margin-top: 1rem;
+      min-height: 1.2rem;
+      font-weight: 500;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="card">
+      <div class="logo-container">
+        <img src="/images/logo.png" alt="News Distribution Logo"
+          style="height: 90px; width: 90px; border-radius: 50%; margin-bottom: 1.25rem; box-shadow: 0 0 20px rgba(0,200,255,0.3); object-fit: cover;">
+        <h1 style="font-size: 1.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: -0.5px;">News<span
+            style="background: linear-gradient(90deg, #00c8ff, #00ffd5); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Distribution</span>
+        </h1>
+        <div class="subtitle">Hệ thống phân phối báo in toàn quốc</div>
+      </div>
+
+      <div class="form-group">
+        <label for="username">Tên đăng nhập</label>
+        <div class="input-wrapper">
+          <input type="text" id="username" placeholder="Tên đăng nhập" autofocus autocomplete="username">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="password">Mật khẩu</label>
+        <div class="input-wrapper">
+          <input type="password" id="password" placeholder="••••••••" onkeydown="if(event.key==='Enter') doLogin()"
+            autocomplete="current-password">
+        </div>
+      </div>
+
+      <button onclick="doLogin()">Đăng nhập hệ thống</button>
+      <div class="error" id="errMsg"></div>
+      
+      <a href="/register.html" style="display: block; text-align: center; margin-top: 1.5rem; color: var(--text-muted); text-decoration: none; font-size: 0.9rem; transition: color 0.3s ease;" onmouseover="this.style.color='#00e5ff'" onmouseout="this.style.color='var(--text-muted)'">Chưa có tài khoản? Đăng ký đại lý mới</a>
+    </div>
+  </div>
+
+  <script>
+    async function doLogin() {
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      const errMsg = document.getElementById('errMsg');
+
+      if (!username || !password) {
+        errMsg.textContent = 'Vui lòng điền đầy đủ thông tin đăng nhập';
+        return;
+      }
+
+      errMsg.textContent = '';
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          errMsg.textContent = data.error || 'Sai tên đăng nhập hoặc mật khẩu';
+          return;
+        }
+
+        localStorage.setItem('accessToken', data.accessToken);
+        localStorage.setItem('role', data.role);
+        localStorage.setItem('makh', data.makh);
+        localStorage.setItem('tenHienThi', data.tenHienThi);
+
+        if (data.role === 'ADMIN_WEB') {
+          window.location.href = '/admin/dashboard.html';
+        } else if (data.role === 'ACCOUNTANT') {
+          window.location.href = '/accountant/dashboard.html';
+        } else {
+          window.location.href = '/agency/dashboard.html';
+        }
+      } catch (e) {
+        errMsg.textContent = 'Lỗi kết nối tới máy chủ';
+      }
+    }
+  </script>
+</body>
+
+</html>

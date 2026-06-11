@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Forecast — News Distribution</title>
+  <link rel="stylesheet" href="/css/dashboard-shared.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="/js/api.js"></script>
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <a href="/admin/dashboard.html" class="sidebar-brand">
+      <img src="/images/logo.png" alt="Logo" class="sidebar-brand-logo">
+      <div class="sidebar-brand-text">News<span>Distribution</span></div>
+    </a>
+
+    <div class="nav-section">
+      <div class="nav-section-label">Quản trị</div>
+      <div class="nav-links">
+        <a href="/admin/dashboard.html" class="nav-item">
+          <i data-lucide="layout-dashboard" class="nav-icon"></i>
+          <span>Dashboard</span>
+        </a>
+        <a href="/admin/ai-forecast.html" class="nav-item active">
+          <i data-lucide="brain-circuit" class="nav-icon"></i>
+          <span>Dự báo AI</span>
+        </a>
+        <a href="/admin/heatmap.html" class="nav-item">
+          <i data-lucide="flame" class="nav-icon"></i>
+          <span>Bản đồ Click</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="nav-logout">
+      <button class="nav-item" onclick="logout()">
+        <i data-lucide="log-out" class="nav-icon"></i>
+        <span>Đăng xuất</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1>Dự báo phát hành AI</h1>
+        <p class="page-subtitle">Hồi quy tuyến tính dự đoán nhu cầu phát hành cho đầu báo dựa trên dữ liệu 90 ngày</p>
+      </div>
+    </div>
+
+    <div class="selector-pane">
+      <i data-lucide="search" style="width:18px;height:18px;color:var(--text-muted)"></i>
+      <label for="selBao">Chọn đầu báo phân tích:</label>
+      <select id="selBao" class="form-select">
+        <option value="">-- Đang tải danh sách báo --</option>
+      </select>
+      <button class="btn btn-primary" onclick="loadForecast()">
+        <i data-lucide="sparkles"></i>
+        Chạy Phân Tích AI
+      </button>
+    </div>
+
+    <div class="result-card" id="result" style="display:none">
+      <div class="metrics-row">
+        <div class="metric-card">
+          <div class="metric-value" id="mForecast">—</div>
+          <div class="metric-label">Dự báo số lượng kỳ tới</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value" id="mR2">—</div>
+          <div class="metric-label">Hệ số xác định R² (Độ khớp)</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value" id="mSlope">—</div>
+          <div class="metric-label">Xu hướng tăng trưởng (tờ/ngày)</div>
+        </div>
+      </div>
+
+      <div style="text-align: center;">
+        <span style="display:block; font-size:0.82rem; color:var(--text-muted); margin-bottom:0.4rem; font-weight:500;">Phương trình hồi quy tuyến tính:</span>
+        <div class="formula-box" id="formula"></div>
+      </div>
+
+      <div class="chart-container">
+        <canvas id="aiChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    lucide.createIcons();
+    requireAuth('ADMIN_WEB');
+    let chart = null;
+
+    async function loadPublications() {
+      const data = await apiGet('/ai/publications');
+      const sel = document.getElementById('selBao');
+      sel.innerHTML = '';
+      if (!data || data.length === 0) {
+        sel.innerHTML = '<option value="">Không có dữ liệu tồn kho để phân tích</option>';
+        return;
+      }
+      data.forEach(b => {
+        const opt = document.createElement('option');
+        opt.value = b.maBao;
+        opt.textContent = b.tenBao + ' (' + b.maBao + ')';
+        sel.appendChild(opt);
+      });
+      // Tự động phân tích đầu báo đầu tiên
+      loadForecast();
+    }
+
+    async function loadForecast() {
+      const maBao = document.getElementById('selBao').value;
+      if (!maBao) return;
+      
+      const data = await apiGet('/ai/forecast/' + maBao);
+      if (!data) return;
+
+      document.getElementById('result').style.display = 'block';
+      document.getElementById('mForecast').textContent = data.forecastNext.toLocaleString('vi-VN') + ' tờ';
+      document.getElementById('mR2').textContent = (data.rSquared * 100).toFixed(1) + '%';
+      
+      const slope = data.coefficients.slope;
+      document.getElementById('mSlope').textContent = (slope > 0 ? '+' : '') + slope.toLocaleString('vi-VN');
+      
+      document.getElementById('formula').textContent = 
+        `y = ${slope}x + ${data.coefficients.intercept.toLocaleString('vi-VN')}  (${data.tenBao})`;
+
+      if (chart) chart.destroy();
+
+      const ctx = document.getElementById('aiChart').getContext('2d');
+      chart = new Chart(ctx, {
+        data: {
+          datasets: [
+            {
+              type: 'scatter',
+              label: 'Số phát hành thực tế',
+              data: data.scatterData.map(d => ({x: d.dayIndex, y: d.actual})),
+              backgroundColor: 'rgba(59, 130, 246, 0.5)',
+              borderColor: 'rgba(59, 130, 246, 1)',
+              pointRadius: 4.5,
+              hoverRadius: 7,
+            },
+            {
+              type: 'line',
+              label: `Đường hồi quy (R²=${data.rSquared})`,
+              data: data.scatterData.map(d => ({x: d.dayIndex, y: d.predicted})),
+              borderColor: '#f59e0b',
+              borderWidth: 2.5,
+              fill: false,
+              pointRadius: 0,
+              tension: 0.05
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { 
+              labels: { 
+                color: '#475569',
+                font: { family: 'Inter', size: 12 },
+                usePointStyle: true,
+                pointStyle: 'circle'
+              } 
+            },
+            tooltip: {
+              backgroundColor: '#ffffff',
+              titleColor: '#1e293b',
+              bodyColor: '#475569',
+              borderColor: '#e2e8f0',
+              borderWidth: 1,
+              padding: 12,
+              titleFont: { family: 'Inter', size: 13, weight: '600' },
+              bodyFont: { family: 'Inter', size: 12 },
+              boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+            }
+          },
+          scales: {
+            x: { 
+              title: { 
+                display: true, 
+                text: 'Thời gian (Ngày index)', 
+                color: '#94a3b8',
+                font: { family: 'Inter', size: 12, weight: '500' }
+              }, 
+              ticks: { color: '#94a3b8', font: { family: 'Inter' } }, 
+              grid: { color: 'rgba(0, 0, 0, 0.04)' } 
+            },
+            y: { 
+              title: { 
+                display: true, 
+                text: 'Số lượng phát hành (tờ)', 
+                color: '#94a3b8',
+                font: { family: 'Inter', size: 12, weight: '500' }
+              }, 
+              ticks: { color: '#94a3b8', font: { family: 'Inter' } }, 
+              grid: { color: 'rgba(0, 0, 0, 0.04)' } 
+            }
+          }
+        }
+      });
+    }
+
+    loadPublications();
+  </script>
+</body>
+</html>
