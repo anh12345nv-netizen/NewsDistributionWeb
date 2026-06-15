@@ -56,7 +56,7 @@ public class DatabaseConfig {
         f.setJpaVendorAdapter(new HibernateJpaVendorAdapter());
         var p = new Properties();
         p.put("hibernate.dialect", "org.hibernate.dialect.SQLServerDialect");
-        p.put("hibernate.hbm2ddl.auto", "none");
+        p.put("hibernate.hbm2ddl.auto", "update");
         f.setJpaProperties(p);
         return f;
     }
