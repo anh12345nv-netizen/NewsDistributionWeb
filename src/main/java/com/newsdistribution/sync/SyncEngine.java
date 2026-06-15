@@ -13,13 +13,16 @@ import java.util.*;
 public class SyncEngine {
 
     private final JdbcTemplate jdbcA;
+    private final JdbcTemplate jdbcB;
     private final JdbcTemplate jdbcC;
     private final SimpMessagingTemplate ws;
 
     public SyncEngine(@Qualifier("jdbcA") JdbcTemplate jdbcA,
+                      @Qualifier("jdbcB") JdbcTemplate jdbcB,
                       @Qualifier("jdbcC") JdbcTemplate jdbcC,
                       SimpMessagingTemplate ws) {
         this.jdbcA = jdbcA;
+        this.jdbcB = jdbcB;
         this.jdbcC = jdbcC;
         this.ws = ws;
     }
@@ -31,6 +34,7 @@ public class SyncEngine {
         syncKhachHang();
         syncHoaDon();
         syncTonKho();
+        syncWebOrders();
         ws.convertAndSend("/topic/sync", Map.of("status", "completed", "at", new Date().toString()));
         log.info("Synchronization completed.");
     }
@@ -122,6 +126,42 @@ public class SyncEngine {
         } catch (Exception e) {
             log.error("syncHoaDon failed: {}", e.getMessage());
             logSync("WINFORM_TO_MASTER","m_hoa_don",0,"ERROR",e.getMessage());
+        }
+    }
+
+    private void syncWebOrders() {
+        try {
+            var rows = jdbcB.queryForList("""
+                SELECT w.order_code as sohd, w.makh, u.ten_doanh_nghiep as ten_kh,
+                       w.created_at as ngayLapPhieu, w.tu_ngay as tuNgay, w.den_ngay as denNgay, 
+                       w.ghi_chu as ghichu, 0 as thanhToan,
+                       ISNULL(SUM(i.thanh_tien),0) as tong_tien,
+                       ISNULL(SUM(i.so_luong),0) as tong_so_bao
+                FROM web_orders w
+                LEFT JOIN web_users u ON w.user_id=u.id
+                LEFT JOIN web_order_items i ON w.id=i.order_id
+                GROUP BY w.order_code, w.makh, u.ten_doanh_nghiep, w.created_at, w.tu_ngay, w.den_ngay, w.ghi_chu
+                """);
+            for (var r : rows) {
+                jdbcC.update("""
+                    MERGE m_hoa_don AS t USING (SELECT ? AS sohd, 'WEB' AS source) AS s
+                      ON t.sohd=s.sohd AND t.source=s.source
+                    WHEN MATCHED THEN UPDATE SET makh=?,ten_kh=?,ngayLapPhieu=?,tuNgay=?,denNgay=?,
+                      ghichu=?,thanhToan=?,tong_tien=?,tong_so_bao=?,synced_at=GETDATE()
+                    WHEN NOT MATCHED THEN INSERT (sohd,makh,ten_kh,ngayLapPhieu,tuNgay,denNgay,ghichu,thanhToan,tong_tien,tong_so_bao,source)
+                      VALUES (?,?,?,?,?,?,?,?,?,?,'WEB');
+                    """,
+                    r.get("sohd"),
+                    r.get("makh"),r.get("ten_kh"),r.get("ngayLapPhieu"),r.get("tuNgay"),r.get("denNgay"),
+                    r.get("ghichu"),r.get("thanhToan"),r.get("tong_tien"),r.get("tong_so_bao"),
+                    r.get("sohd"),r.get("makh"),r.get("ten_kh"),r.get("ngayLapPhieu"),r.get("tuNgay"),r.get("denNgay"),
+                    r.get("ghichu"),r.get("thanhToan"),r.get("tong_tien"),r.get("tong_so_bao")
+                );
+            }
+            logSync("WEB_TO_MASTER","m_hoa_don",rows.size(),"SUCCESS",null);
+        } catch (Exception e) {
+            log.error("syncWebOrders failed: {}", e.getMessage());
+            logSync("WEB_TO_MASTER","m_hoa_don",0,"ERROR",e.getMessage());
         }
     }
 

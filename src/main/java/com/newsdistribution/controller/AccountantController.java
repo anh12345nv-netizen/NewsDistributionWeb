@@ -30,6 +30,11 @@ public class AccountantController {
         try {
             // Using TOP 100 to avoid overwhelming the frontend or DB
             String sql = "SELECT TOP 100 * FROM " + tableName;
+            if (tableName.equalsIgnoreCase("m_hoa_don")) {
+                sql += " ORDER BY ngayLapPhieu DESC, sohd DESC";
+            } else if (tableName.equalsIgnoreCase("web_orders")) {
+                sql += " ORDER BY created_at DESC";
+            }
             List<Map<String, Object>> data = jdbcC.queryForList(sql);
             return ResponseEntity.ok(data);
         } catch (Exception e) {
