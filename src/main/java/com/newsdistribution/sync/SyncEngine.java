@@ -98,7 +98,7 @@ public class SyncEngine {
         try {
             var rows = jdbcA.queryForList("""
                 SELECT h.sohd, h.makh, k.TEN as ten_kh,
-                       h.ngayLapPhieu, h.tuNgay, h.denNgay, h.ghichu, h.thanhToan,
+                       h.ngayLapPhieu, ISNULL(h.tuNgay, h.ngayLapPhieu) as tuNgay, ISNULL(h.denNgay, h.ngayLapPhieu) as denNgay, ISNULL(h.ghichu, '') as ghichu, h.thanhToan,
                        ISNULL(SUM(c.thanhTien),0) as tong_tien,
                        ISNULL(SUM(c.soLuongThuc+c.soLuongPhatSinh),0) as tong_so_bao
                 FROM tabHOADON h
@@ -107,6 +107,10 @@ public class SyncEngine {
                 GROUP BY h.sohd,h.makh,k.TEN,h.ngayLapPhieu,h.tuNgay,h.denNgay,h.ghichu,h.thanhToan
                 """);
             for (var r : rows) {
+                String tenKh = r.get("ten_kh") != null ? VniToUnicodeConverter.convert(r.get("ten_kh").toString()) : null;
+                String ghichu = r.get("ghichu") != null ? VniToUnicodeConverter.convert(r.get("ghichu").toString()) : "";
+                Object tuNgay = r.get("tuNgay") != null ? r.get("tuNgay") : r.get("ngayLapPhieu");
+                Object denNgay = r.get("denNgay") != null ? r.get("denNgay") : r.get("ngayLapPhieu");
                 jdbcC.update("""
                     MERGE m_hoa_don AS t USING (SELECT ? AS sohd, 'WINFORM' AS source) AS s
                       ON t.sohd=s.sohd AND t.source=s.source
@@ -116,10 +120,10 @@ public class SyncEngine {
                       VALUES (?,?,?,?,?,?,?,?,?,?,'WINFORM');
                     """,
                     r.get("sohd"),
-                    r.get("makh"),r.get("ten_kh"),r.get("ngayLapPhieu"),r.get("tuNgay"),r.get("denNgay"),
-                    r.get("ghichu"),r.get("thanhToan"),r.get("tong_tien"),r.get("tong_so_bao"),
-                    r.get("sohd"),r.get("makh"),r.get("ten_kh"),r.get("ngayLapPhieu"),r.get("tuNgay"),r.get("denNgay"),
-                    r.get("ghichu"),r.get("thanhToan"),r.get("tong_tien"),r.get("tong_so_bao")
+                    r.get("makh"),tenKh,r.get("ngayLapPhieu"),tuNgay,denNgay,
+                    ghichu,r.get("thanhToan"),r.get("tong_tien"),r.get("tong_so_bao"),
+                    r.get("sohd"),r.get("makh"),tenKh,r.get("ngayLapPhieu"),tuNgay,denNgay,
+                    ghichu,r.get("thanhToan"),r.get("tong_tien"),r.get("tong_so_bao")
                 );
             }
             logSync("WINFORM_TO_MASTER","m_hoa_don",rows.size(),"SUCCESS",null);
@@ -134,15 +138,19 @@ public class SyncEngine {
             var rows = jdbcB.queryForList("""
                 SELECT w.order_code as sohd, w.makh, u.ten_doanh_nghiep as ten_kh,
                        w.created_at as ngayLapPhieu, w.tu_ngay as tuNgay, w.den_ngay as denNgay, 
-                       w.ghi_chu as ghichu, 0 as thanhToan,
+                       w.ghi_chu as ghichu, CASE WHEN w.payment_status = 'PAID' THEN 1 ELSE 0 END as thanhToan,
                        ISNULL(SUM(i.thanh_tien),0) as tong_tien,
                        ISNULL(SUM(i.so_luong),0) as tong_so_bao
                 FROM web_orders w
                 LEFT JOIN web_users u ON w.user_id=u.id
                 LEFT JOIN web_order_items i ON w.id=i.order_id
-                GROUP BY w.order_code, w.makh, u.ten_doanh_nghiep, w.created_at, w.tu_ngay, w.den_ngay, w.ghi_chu
+                GROUP BY w.order_code, w.makh, u.ten_doanh_nghiep, w.created_at, w.tu_ngay, w.den_ngay, w.ghi_chu, w.payment_status
                 """);
             for (var r : rows) {
+                Object thanhToan = r.get("thanhToan");
+                if (thanhToan == null && r.get("payment_status") != null) {
+                    thanhToan = "PAID".equalsIgnoreCase(r.get("payment_status").toString()) ? 1 : 0;
+                }
                 jdbcC.update("""
                     MERGE m_hoa_don AS t USING (SELECT ? AS sohd, 'WEB' AS source) AS s
                       ON t.sohd=s.sohd AND t.source=s.source
@@ -152,10 +160,10 @@ public class SyncEngine {
                       VALUES (?,?,?,?,?,?,?,?,?,?,'WEB');
                     """,
                     r.get("sohd"),
-                    r.get("makh"),r.get("ten_kh"),r.get("ngayLapPhieu"),r.get("tuNgay"),r.get("denNgay"),
-                    r.get("ghichu"),r.get("thanhToan"),r.get("tong_tien"),r.get("tong_so_bao"),
-                    r.get("sohd"),r.get("makh"),r.get("ten_kh"),r.get("ngayLapPhieu"),r.get("tuNgay"),r.get("denNgay"),
-                    r.get("ghichu"),r.get("thanhToan"),r.get("tong_tien"),r.get("tong_so_bao")
+                    r.get("makh"),r.get("ten_kh"),r.get("ngayLapPhieu"),r.get("tu_ngay") != null ? r.get("tu_ngay") : r.get("tuNgay"),r.get("den_ngay") != null ? r.get("den_ngay") : r.get("denNgay"),
+                    r.get("ghichu"),thanhToan,r.get("tong_tien"),r.get("tong_so_bao"),
+                    r.get("sohd"),r.get("makh"),r.get("ten_kh"),r.get("ngayLapPhieu"),r.get("tu_ngay") != null ? r.get("tu_ngay") : r.get("tuNgay"),r.get("den_ngay") != null ? r.get("den_ngay") : r.get("denNgay"),
+                    r.get("ghichu"),thanhToan,r.get("tong_tien"),r.get("tong_so_bao")
                 );
             }
             logSync("WEB_TO_MASTER","m_hoa_don",rows.size(),"SUCCESS",null);
@@ -168,10 +176,10 @@ public class SyncEngine {
     private void syncTonKho() {
         try {
             var rows = jdbcA.queryForList(
-                "SELECT ngay,maBao,tenBao,soBao,slPhatHanh,banthuc,banLe,dieuPhoi,ton FROM tabTon"
+                "SELECT ngay,maBao,tenBao,soBao,slPhatHanh,banthuc,banLe,dieuPhoi,(ISNULL(slPhatHanh,0) - ISNULL(banthuc,0) - ISNULL(banLe,0) - ISNULL(dieuPhoi,0)) AS ton FROM tabTon"
             );
-            // tabTon không có PK rõ ràng → xóa và insert lại 7 ngày gần nhất
-            jdbcC.update("DELETE FROM m_ton_kho WHERE ngay >= DATEADD(day,-7,GETDATE())");
+            // Delete all and insert to prevent old garbage data (issue 4)
+            jdbcC.update("DELETE FROM m_ton_kho");
             for (var r : rows) {
                 jdbcC.update("""
                     INSERT INTO m_ton_kho (ngay,maBao,tenBao,slPhatHanh,banthuc,banLe,dieuPhoi,ton)

@@ -42,10 +42,24 @@ public class AuthService {
             throw new RuntimeException("Tên đăng nhập đã tồn tại trong hệ thống");
         }
 
+        String maxMakh = userRepo.findMaxMakh();
+        String autoMakh;
+        if (maxMakh == null || maxMakh.length() < 3) {
+            autoMakh = "DL001";
+        } else {
+            try {
+                int nextId = Integer.parseInt(maxMakh.substring(2)) + 1;
+                autoMakh = String.format("DL%03d", nextId);
+            } catch (Exception e) {
+                autoMakh = "DL" + java.util.UUID.randomUUID().toString().substring(0, 3).toUpperCase();
+            }
+        }
+
         WebUser user = WebUser.builder()
             .username(username)
             .passwordHash(passwordEncoder.encode(password))
             .role("AGENCY")
+            .makh(autoMakh)
             .tenHienThi(tenHienThi != null && !tenHienThi.isBlank() ? tenHienThi : username)
             .email(email)
             .tenDoanhNghiep(tenDoanhNghiep)

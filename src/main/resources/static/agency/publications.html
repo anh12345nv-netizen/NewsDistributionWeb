@@ -312,7 +312,7 @@
         renderCart();
         window.location.href = '/agency/orders.html';
       } else {
-        alert('Đã xảy ra lỗi khi tạo đơn hàng.');
+        alert(res.error ? `Lỗi: ${res.error}` : 'Đã xảy ra lỗi khi tạo đơn hàng.');
       }
     }
 

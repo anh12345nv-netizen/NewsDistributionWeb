@@ -20,17 +20,23 @@ public class AgencyService {
     private final WebOrderRepository orderRepo;
     private final WebOrderItemRepository itemRepo;
     private final SimpMessagingTemplate ws;
+    private final EmailService emailService;
+
+    @org.springframework.beans.factory.annotation.Value("${admin.notification.email:}")
+    private String adminEmail;
 
     public AgencyService(@Qualifier("jdbcC") JdbcTemplate jdbcC,
                          @Qualifier("jdbcB") JdbcTemplate jdbcB,
                          WebOrderRepository orderRepo,
                          WebOrderItemRepository itemRepo,
-                         SimpMessagingTemplate ws) {
+                         SimpMessagingTemplate ws,
+                         EmailService emailService) {
         this.jdbcC = jdbcC;
         this.jdbcB = jdbcB;
         this.orderRepo = orderRepo;
         this.itemRepo = itemRepo;
         this.ws = ws;
+        this.emailService = emailService;
     }
 
     public Map<String, Object> getDashboard(String makh) {
@@ -119,9 +125,10 @@ public class AgencyService {
             validatedItems.add(validItem);
         }
 
-        if (tongNoHienTai + newOrderTotal.doubleValue() > hanMucNo) {
-            throw new RuntimeException("Vượt quá hạn mức tín dụng cho phép! Hạn mức còn lại: " + (hanMucNo - tongNoHienTai) + "đ.");
-        }
+        // The user requested to remove the credit limit check so agencies can order freely
+        // if (tongNoHienTai + newOrderTotal.doubleValue() > hanMucNo) {
+        //     throw new RuntimeException("Vượt quá hạn mức tín dụng cho phép! Hạn mức còn lại: " + (hanMucNo - tongNoHienTai) + "đ.");
+        // }
 
         WebOrder order = WebOrder.builder()
             .orderCode(orderCode)
@@ -170,6 +177,17 @@ public class AgencyService {
             "makh", makh,
             "orderType", orderType
         ));
+
+        // Email Notification
+        if (adminEmail != null && !adminEmail.isBlank()) {
+            emailService.sendOrderNotification(
+                adminEmail, 
+                makh, 
+                orderCode, 
+                orderType, 
+                String.format("%,.0f", newOrderTotal.doubleValue())
+            );
+        }
 
         return order;
     }

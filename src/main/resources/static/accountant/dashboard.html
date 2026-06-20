@@ -144,6 +144,24 @@
             <div class="stat-value" id="val-bao">—</div>
           </div>
         </div>
+        <div class="stat-card" style="border-left: 4px solid var(--accent-info);">
+          <div class="stat-icon-box" style="background: rgba(14, 165, 233, 0.1); color: var(--accent-info);">
+            <i data-lucide="dollar-sign"></i>
+          </div>
+          <div class="stat-info">
+            <div class="stat-label">Doanh Thu Web</div>
+            <div class="stat-value" id="val-rev-web">—</div>
+          </div>
+        </div>
+        <div class="stat-card" style="border-left: 4px solid var(--accent-purple);">
+          <div class="stat-icon-box" style="background: rgba(139, 92, 246, 0.1); color: var(--accent-purple);">
+            <i data-lucide="wallet"></i>
+          </div>
+          <div class="stat-info">
+            <div class="stat-label">Doanh Thu Winform</div>
+            <div class="stat-value" id="val-rev-winform">—</div>
+          </div>
+        </div>
       </div>
 
       <!-- Charts Grid -->
@@ -162,6 +180,18 @@
 
     <!-- Table Section -->
     <div id="table-section" class="table-container">
+      <!-- Premium Search Control Bar -->
+      <div id="search-control-bar" style="margin-bottom: 20px; display: none; align-items: center; justify-content: space-between; gap: 15px; flex-wrap: wrap;">
+        <div style="position: relative; flex: 1; max-width: 400px; min-width: 250px;">
+          <i data-lucide="search" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: var(--text-muted); pointer-events: none;"></i>
+          <input type="text" id="table-search-input" class="form-input" placeholder="Tìm kiếm nhanh..." style="padding-left: 42px; border-radius: 24px; height: 44px; border: 1px solid var(--border-input); box-shadow: var(--shadow-xs); font-weight: 500;">
+        </div>
+        <div id="search-count-badge" class="badge badge-info" style="font-size: 0.85rem; padding: 0.5rem 1rem; border-radius: var(--radius-full); display: flex; align-items: center; gap: 0.5rem; box-shadow: var(--shadow-xs);">
+          <i data-lucide="filter" style="width: 14px; height: 14px;"></i>
+          <span id="search-count-text">Tìm thấy 0 dòng</span>
+        </div>
+      </div>
+
       <div id="table-loading" style="text-align:center; padding:30px; color:var(--text-muted);">
         <i data-lucide="loader" class="animate-spin"></i> Đang tải dữ liệu...
       </div>
@@ -234,9 +264,38 @@
         document.getElementById('val-bao').innerText = data['m_bao'] || 0;
 
         renderCharts(data);
+        fetchRevenueStats();
       } catch (error) {
         console.error("Error fetching stats:", error);
       }
+    }
+
+    async function fetchRevenueStats() {
+      try {
+        const response = await fetch('/api/accountant/stats/revenue', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (response.status === 200) {
+          const data = await response.json();
+          document.getElementById('val-rev-web').innerText = formatCurrency(data['WEB'] || 0);
+          document.getElementById('val-rev-winform').innerText = formatCurrency(data['WINFORM'] || 0);
+        } else {
+          const errText = await response.text();
+          console.error("Revenue API Error:", response.status, errText);
+          document.getElementById('val-rev-web').innerText = "Lỗi";
+          document.getElementById('val-rev-web').title = errText;
+          document.getElementById('val-rev-winform').innerText = "Lỗi DB";
+          document.getElementById('val-rev-winform').title = errText;
+        }
+      } catch (error) {
+        console.error("Error fetching revenue:", error);
+        document.getElementById('val-rev-web').innerText = "Lỗi mạng";
+        document.getElementById('val-rev-winform').innerText = "Lỗi mạng";
+      }
+    }
+
+    function formatCurrency(amount) {
+      return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
     }
 
     function renderCharts(data) {
@@ -341,6 +400,85 @@
       });
     }
 
+    let currentTableData = [];
+    let currentTableKeys = [];
+    let currentTableName = '';
+
+    function renderTableRows(data) {
+      const tbody = document.getElementById('data-tbody');
+      const searchCountText = document.getElementById('search-count-text');
+      tbody.innerHTML = '';
+      
+      if (!data || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="100%" style="text-align:center; padding: 20px; color: var(--text-muted);">Không tìm thấy kết quả phù hợp</td></tr>';
+        searchCountText.innerText = `Tìm thấy 0 / ${currentTableData.length} dòng`;
+        return;
+      }
+      
+      let bodyHtml = '';
+      data.forEach(row => {
+        bodyHtml += '<tr>';
+        currentTableKeys.forEach(k => { 
+          let val = row[k];
+          if (val === null) {
+            val = '';
+          }
+          
+          // Premium badge styling
+          if (k.toUpperCase() === 'SOURCE' && val) {
+            const valStr = val.toString().toUpperCase();
+            if (valStr === 'WEB') {
+              val = `<span class="badge badge-info">${valStr}</span>`;
+            } else if (valStr === 'WINFORM') {
+              val = `<span class="badge badge-pending" style="background: rgba(139, 92, 246, 0.08); color: var(--accent-purple);">${valStr}</span>`;
+            }
+          } else if (k.toUpperCase() === 'THANHTOAN') {
+            const valStr = val.toString().toLowerCase();
+            if (valStr === 'true' || val === 1 || val === true) {
+              val = `<span class="badge badge-success">Đã TT</span>`;
+            } else if (valStr === 'false' || val === 0 || val === false) {
+              val = `<span class="badge badge-error">Chưa TT</span>`;
+            }
+          }
+          
+          bodyHtml += `<td>${val}</td>`; 
+        });
+        if (currentTableName === 'm_hoa_don') {
+          const sohd = row['sohd'];
+          bodyHtml += `<td style="text-align:center;"><button onclick="viewInvoiceDetails('${sohd}')" class="btn" style="padding: 6px 12px; font-size: 12px; background: rgba(59, 130, 246, 0.1); color: var(--accent-info); border: 1px solid rgba(59, 130, 246, 0.2);"><i data-lucide="eye" style="width:14px;height:14px; margin-right:4px;"></i> Xem</button></td>`;
+        }
+        bodyHtml += '</tr>';
+      });
+      tbody.innerHTML = bodyHtml;
+      
+      if (data.length === currentTableData.length) {
+        searchCountText.innerText = `Tổng số: ${currentTableData.length} dòng`;
+      } else {
+        searchCountText.innerText = `Tìm thấy ${data.length} / ${currentTableData.length} dòng`;
+      }
+    }
+
+    // Input search handler
+    document.getElementById('table-search-input').addEventListener('input', function(e) {
+      const query = e.target.value.trim().toLowerCase();
+      if (!query) {
+        renderTableRows(currentTableData);
+        return;
+      }
+      
+      const keywords = query.split(/\s+/);
+      const filtered = currentTableData.filter(row => {
+        const rowText = currentTableKeys.map(k => {
+          const val = row[k];
+          return val !== null ? val.toString().toLowerCase() : '';
+        }).join(' ');
+        
+        return keywords.every(kw => rowText.includes(kw));
+      });
+      
+      renderTableRows(filtered);
+    });
+
     async function loadTable(tableName, element) {
       setActiveMenu(element);
       
@@ -351,10 +489,14 @@
       if(tableName === 'm_bao') title = 'Danh mục Báo';
 
       document.getElementById('page-title').innerText = 'Bảng dữ liệu: ' + title;
-      document.getElementById('page-subtitle').innerText = 'Hiển thị Top 100 dòng mới nhất của ' + tableName;
+      document.getElementById('page-subtitle').innerText = 'Hiển thị toàn bộ dữ liệu của ' + tableName;
       
       document.getElementById('overview-section').style.display = 'none';
       document.getElementById('table-section').style.display = 'block';
+      
+      // Reset Search Input & Hide search bar during loading
+      document.getElementById('table-search-input').value = '';
+      document.getElementById('search-control-bar').style.display = 'none';
       
       const thead = document.getElementById('data-thead');
       const tbody = document.getElementById('data-tbody');
@@ -367,6 +509,7 @@
       loading.style.display = 'block';
       loading.innerHTML = '<i data-lucide="loader" class="animate-spin"></i> Đang tải dữ liệu...';
       lucide.createIcons();
+      currentTableName = tableName;
 
       try {
         const response = await fetch('/api/accountant/tables/' + tableName, {
@@ -386,27 +529,97 @@
           return;
         }
 
-        const keys = Object.keys(data[0]);
+        currentTableData = data;
+        currentTableKeys = Object.keys(data[0]);
+
         let headRow = '<tr>';
-        keys.forEach(k => { headRow += `<th>${k}</th>`; });
+        currentTableKeys.forEach(k => { headRow += `<th>${k}</th>`; });
+        if (tableName === 'm_hoa_don') {
+          headRow += `<th style="text-align:center;">Thao tác</th>`;
+        }
         headRow += '</tr>';
         thead.innerHTML = headRow;
 
-        let bodyHtml = '';
-        data.forEach(row => {
-          bodyHtml += '<tr>';
-          keys.forEach(k => { 
-            bodyHtml += `<td>${row[k] !== null ? row[k] : ''}</td>`; 
-          });
-          bodyHtml += '</tr>';
-        });
-        tbody.innerHTML = bodyHtml;
+        // Show search bar
+        document.getElementById('search-control-bar').style.display = 'flex';
+        
+        // Render initial rows
+        renderTableRows(data);
+        lucide.createIcons();
 
       } catch (error) {
         console.error("Error loading table:", error);
         loading.innerHTML = '<span style="color:var(--accent-red)">Lỗi khi tải dữ liệu</span>';
       }
     }
+    async function viewInvoiceDetails(sohd) {
+      document.getElementById('invoice-modal').style.display = 'flex';
+      document.getElementById('invoice-modal-title').innerText = 'Chi tiết hóa đơn: ' + sohd;
+      const tbody = document.getElementById('invoice-details-tbody');
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 20px;">Đang tải dữ liệu...</td></tr>';
+      
+      try {
+        const response = await fetch('/api/accountant/invoices/' + sohd + '/details', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        const details = await response.json();
+        
+        if (details.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 20px; color: var(--text-muted);">Chưa hỗ trợ xem chi tiết cho hóa đơn Winform.</td></tr>';
+          return;
+        }
+
+        let html = '';
+        let total = 0;
+        details.forEach(item => {
+          html += `<tr>
+            <td style="white-space:normal; min-width:200px;">${item.ten_bao}</td>
+            <td style="text-align:center;">${item.so_luong}</td>
+            <td style="text-align:right; color:var(--text-main);">${formatCurrency(item.don_gia)}</td>
+            <td style="text-align:right; font-weight:600; color:var(--text-main);">${formatCurrency(item.thanh_tien)}</td>
+          </tr>`;
+          total += item.thanh_tien;
+        });
+        html += `<tr style="background: rgba(255,255,255,0.02);">
+          <td colspan="3" style="text-align:right; font-weight:bold; padding-right:15px; text-transform:uppercase;">Tổng cộng:</td>
+          <td style="text-align:right; font-weight:bold; color:var(--accent-info); font-size:16px;">${formatCurrency(total)}</td>
+        </tr>`;
+        tbody.innerHTML = html;
+      } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--accent-red); padding: 20px;">Lỗi tải dữ liệu</td></tr>';
+      }
+    }
+    
+    function closeInvoiceModal() {
+      document.getElementById('invoice-modal').style.display = 'none';
+    }
   </script>
+
+  <div id="invoice-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); align-items:center; justify-content:center; z-index:1000; backdrop-filter: blur(4px);">
+    <div style="background:var(--surface); border-radius:16px; padding:24px; width:700px; max-width:90%; border:1px solid var(--border); box-shadow: 0 10px 40px rgba(0,0,0,0.8);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom: 1px solid var(--border); padding-bottom: 15px;">
+        <h3 id="invoice-modal-title" style="margin:0; font-size:20px; color:var(--text-main); font-weight:600;">Chi tiết hóa đơn</h3>
+        <button onclick="closeInvoiceModal()" style="background:none; border:none; color:var(--text-muted); cursor:pointer; padding:4px; border-radius:4px; display:flex; align-items:center; justify-content:center;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='none'"><i data-lucide="x"></i></button>
+      </div>
+      <div class="table-container" style="max-height:450px; overflow-y:auto; margin-bottom:20px; border: 1px solid var(--border); border-radius: 8px;">
+        <table class="data-table" style="margin-bottom:0; border:none;">
+          <thead style="position: sticky; top: 0; z-index: 10;">
+            <tr>
+              <th style="background:var(--surface-light); border-bottom: 1px solid var(--border);">Tên Báo</th>
+              <th style="text-align:center; background:var(--surface-light); border-bottom: 1px solid var(--border);">Số Lượng</th>
+              <th style="text-align:right; background:var(--surface-light); border-bottom: 1px solid var(--border);">Đơn Giá</th>
+              <th style="text-align:right; background:var(--surface-light); border-bottom: 1px solid var(--border);">Thành Tiền</th>
+            </tr>
+          </thead>
+          <tbody id="invoice-details-tbody">
+          </tbody>
+        </table>
+      </div>
+      <div style="text-align:right;">
+        <button onclick="closeInvoiceModal()" class="btn" style="background: var(--surface-light); border: 1px solid var(--border); color: var(--text-main); padding: 8px 20px;">Đóng</button>
+      </div>
+    </div>
+  </div>
+  <script>lucide.createIcons();</script>
 </body>
 </html>

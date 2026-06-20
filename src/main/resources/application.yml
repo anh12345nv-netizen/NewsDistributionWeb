@@ -11,6 +11,17 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.SQLServerDialect
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: "anh12345nv@gmail.com"
+    password: "rmvskwopcacarhsl" 
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
   jackson:
     time-zone: Asia/Ho_Chi_Minh
     date-format: yyyy-MM-dd'T'HH:mm:ss
@@ -43,3 +54,7 @@ jwt:
 
 sync:
   interval-ms: 30000
+
+admin:
+  notification:
+    email: "anh12345nv@gmail.com" #thay mail muốn nhận thông báo tại đây 
