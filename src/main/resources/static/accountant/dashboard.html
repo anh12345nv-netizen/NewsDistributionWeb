@@ -445,11 +445,12 @@
         });
         if (currentTableName === 'm_hoa_don') {
           const sohd = row['sohd'];
-          bodyHtml += `<td style="text-align:center;"><button onclick="viewInvoiceDetails('${sohd}')" class="btn" style="padding: 6px 12px; font-size: 12px; background: rgba(59, 130, 246, 0.1); color: var(--accent-info); border: 1px solid rgba(59, 130, 246, 0.2);"><i data-lucide="eye" style="width:14px;height:14px; margin-right:4px;"></i> Xem</button></td>`;
+          bodyHtml += `<td style="text-align:center; white-space:nowrap; min-width: 120px;"><button onclick="viewInvoiceDetails('${sohd}')" class="btn" style="padding: 6px 12px; font-size: 12px; background: rgba(59, 130, 246, 0.1); color: var(--accent-info); border: 1px solid rgba(59, 130, 246, 0.2);"><i data-lucide="eye" style="width:14px;height:14px; margin-right:4px;"></i> Xem</button></td>`;
         }
         bodyHtml += '</tr>';
       });
       tbody.innerHTML = bodyHtml;
+      if (typeof lucide !== 'undefined') lucide.createIcons();
       
       if (data.length === currentTableData.length) {
         searchCountText.innerText = `Tổng số: ${currentTableData.length} dòng`;
@@ -535,7 +536,7 @@
         let headRow = '<tr>';
         currentTableKeys.forEach(k => { headRow += `<th>${k}</th>`; });
         if (tableName === 'm_hoa_don') {
-          headRow += `<th style="text-align:center;">Thao tác</th>`;
+          headRow += `<th style="text-align:center; min-width: 120px;">Thao tác</th>`;
         }
         headRow += '</tr>';
         thead.innerHTML = headRow;

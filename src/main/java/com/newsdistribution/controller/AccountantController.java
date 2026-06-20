@@ -88,8 +88,12 @@ public class AccountantController {
             }
             return ResponseEntity.ok(revenue);
         } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(500).body(Map.of("error", e.getMessage(), "cause", e.getCause() != null ? e.getCause().getMessage() : ""));
+            try {
+                java.io.PrintWriter pw = new java.io.PrintWriter("C:\\Users\\Admin\\Desktop\\error.txt");
+                e.printStackTrace(pw);
+                pw.close();
+            } catch (Exception ex) {}
+            return ResponseEntity.status(500).body(Map.of("error", String.valueOf(e.getMessage())));
         }
     }
 
@@ -100,7 +104,7 @@ public class AccountantController {
             String sourceSql = "SELECT TOP 1 source FROM m_hoa_don WHERE sohd = ?";
             String source = jdbcC.queryForObject(sourceSql, String.class, sohd);
 
-            if ("WEB".equalsIgnoreCase(source)) {
+            if (source != null && "WEB".equalsIgnoreCase(source.trim())) {
                 // Lấy chi tiết đơn hàng Web từ DB B
                 String sql = "SELECT i.* FROM web_order_items i JOIN web_orders o ON i.order_id = o.id WHERE o.order_code = ?";
                 List<Map<String, Object>> details = jdbcB.queryForList(sql, sohd);
