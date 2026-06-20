@@ -58,7 +58,7 @@ public class AnalyticsController {
     @GetMapping("/stats")
     public ResponseEntity<?> getStats() {
         try {
-            Integer totalUsers = jdbc.queryForObject("SELECT COUNT(*) FROM web_users", Integer.class);
+            Integer totalUsers = jdbc.queryForObject("SELECT COUNT(*) FROM web_users WHERE role = 'AGENCY'", Integer.class);
             Integer totalOrders = jdbc.queryForObject("SELECT COUNT(*) FROM web_orders", Integer.class);
             Integer totalBao = jdbcC.queryForObject("SELECT COUNT(*) FROM m_bao", Integer.class);
             Integer totalLogs = jdbc.queryForObject("SELECT COUNT(*) FROM web_activity_log", Integer.class);

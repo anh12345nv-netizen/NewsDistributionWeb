@@ -6,6 +6,7 @@
   <title>My Orders — News Distribution</title>
   <link rel="stylesheet" href="/css/dashboard-shared.css">
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="/js/api.js"></script>
 </head>
 <body>
@@ -31,6 +32,14 @@
         <a href="/agency/orders.html" class="nav-item active">
           <i data-lucide="shopping-cart" class="nav-icon"></i>
           <span>Đơn hàng của tôi</span>
+        </a>
+        <a href="/agency/debt.html" class="nav-item">
+          <i data-lucide="wallet" class="nav-icon"></i>
+          <span>Công nợ</span>
+        </a>
+        <a href="/agency/requests.html" class="nav-item">
+          <i data-lucide="help-circle" class="nav-icon"></i>
+          <span>Lịch sử khiếu nại</span>
         </a>
       </div>
     </div>
@@ -75,9 +84,9 @@
             <thead>
               <tr>
                 <th>Mã Đơn</th>
-                <th>Từ Ngày</th>
-                <th>Đến Ngày</th>
-                <th>Trạng Thái</th>
+                <th>Khoảng Thời Gian</th>
+                <th>Trạng Thái Giao Hàng</th>
+                <th>Thanh Toán</th>
                 <th>Mã WinForm</th>
               </tr>
             </thead>
@@ -103,8 +112,21 @@
           <div class="detail-item"><strong>Mã đơn hàng:</strong> <span id="det-code" style="color:var(--accent-primary); font-weight:600">—</span></div>
           <div class="detail-item"><strong>Khoảng thời gian:</strong> <span id="det-dates">—</span></div>
           <div class="detail-item"><strong>Ngày đặt đơn:</strong> <span id="det-created">—</span></div>
-          <div class="detail-item"><strong>Trạng thái:</strong> <span id="det-status">—</span></div>
+          <div class="detail-item"><strong>Giao hàng:</strong> <span id="det-delivery">—</span></div>
+          <div class="detail-item"><strong>Thanh toán:</strong> <span id="det-payment">—</span></div>
           <div class="detail-item"><strong>Ghi chú:</strong> <span id="det-note">—</span></div>
+        </div>
+        
+        <div style="margin-bottom: 1.5rem; display: flex; flex-wrap: wrap; gap: 10px;">
+          <button class="btn-refresh" style="background: #10b981; color: white;" onclick="confirmReceived()" id="btn-confirm-received" style="display:none;">
+            <i data-lucide="check-square"></i> Đã nhận hàng
+          </button>
+          <button class="btn-refresh" style="background: #f59e0b; color: white;" onclick="downloadPDF()">
+            <i data-lucide="download"></i> Tải PDF Hóa Đơn
+          </button>
+          <button class="btn-refresh" style="background: #3b82f6; color: white;" onclick="openAgencyRequestModal()">
+            <i data-lucide="help-circle"></i> Gửi Khiếu Nại / Hỗ Trợ
+          </button>
         </div>
 
         <div style="font-size:0.78rem; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; display:flex; align-items:center; gap:0.4rem;">
@@ -119,6 +141,34 @@
           <span>Tổng giá trị đơn:</span>
           <span id="det-total" style="color:var(--accent-primary)">0 đ</span>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Create Request -->
+  <div id="agencyRequestModal" class="modal-overlay" style="display:none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000;">
+    <div class="modal-content" style="background: var(--bg-card); border-radius: 12px; padding: 24px; width: 500px; max-width: 90%;">
+      <div class="modal-header" style="display: flex; justify-content: space-between; margin-bottom: 20px; border-bottom: 1px solid var(--border-light); padding-bottom: 10px;">
+        <h3 class="modal-title" style="font-size: 1.25rem;">Gửi Yêu Cầu / Khiếu Nại</h3>
+        <button onclick="closeAgencyRequestModal()" style="background: none; border: none; cursor: pointer; color: var(--text-muted);"><i data-lucide="x"></i></button>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 15px;">
+        <p style="color: var(--text-muted); font-size: 0.9rem;">Mã đơn hàng: <strong id="req_disp_code" style="color: var(--accent-primary);"></strong></p>
+        <input type="hidden" id="req_order_code">
+        <div>
+          <label style="display:block; margin-bottom: 5px; color: var(--text-muted);">Loại Yêu Cầu</label>
+          <select id="req_type" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-light); background: var(--bg-main); color: var(--text-primary);">
+            <option value="BỔ_SUNG">Bổ sung hàng hóa (Giao thiếu)</option>
+            <option value="HỎI_ĐÁP">Hỏi đáp / Phản ánh</option>
+            <option value="LỖI_IN_ẤN">Báo lỗi in ấn</option>
+            <option value="KHÁC">Khác</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block; margin-bottom: 5px; color: var(--text-muted);">Nội dung chi tiết</label>
+          <textarea id="req_note" rows="3" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-light); background: var(--bg-main); color: var(--text-primary);"></textarea>
+        </div>
+        <button onclick="submitAgencyRequest()" class="btn-refresh" style="background: var(--accent-primary); color: white; width: 100%; justify-content: center; padding: 10px; margin-top: 10px;">Gửi Yêu Cầu</button>
       </div>
     </div>
   </div>
@@ -148,25 +198,23 @@
           const from = new Date(o.tuNgay).toLocaleDateString('vi-VN');
           const to = new Date(o.denNgay).toLocaleDateString('vi-VN');
           
-          let badgeClass = 'badge-pending';
-          let statusText = 'Chờ duyệt';
-          let statusIcon = 'clock';
-          if (o.syncStatus === 'SYNCED') {
-            badgeClass = 'badge-synced';
-            statusText = 'Đã duyệt';
-            statusIcon = 'check-circle';
-          } else if (o.syncStatus === 'FAILED') {
-            badgeClass = 'badge-failed';
-            statusText = 'Lỗi sync';
-            statusIcon = 'x-circle';
-          }
+          let deliveryBadge = 'badge-pending';
+          let deliveryText = 'Chờ duyệt';
+          if (o.deliveryStatus === 'APPROVED') { deliveryBadge = 'badge-synced'; deliveryText = 'Đã duyệt'; }
+          else if (o.deliveryStatus === 'DELIVERED') { deliveryBadge = 'badge-synced'; deliveryText = 'Đang giao'; }
+          else if (o.deliveryStatus === 'RECEIVED') { deliveryBadge = 'badge-success'; deliveryText = 'Đã nhận'; }
+
+          let paymentBadge = 'badge-pending';
+          let paymentText = 'Chưa thanh toán';
+          if (o.paymentStatus === 'PAID') { paymentBadge = 'badge-success'; paymentText = 'Đã thanh toán'; }
+          else if (o.paymentStatus === 'OVERDUE') { paymentBadge = 'badge-failed'; paymentText = 'Quá hạn'; }
 
           return `
             <tr onclick="showDetails(${o.id})" style="cursor:pointer">
               <td><strong>${o.orderCode}</strong></td>
-              <td>${from}</td>
-              <td>${to}</td>
-              <td><span class="badge ${badgeClass}"><i data-lucide="${statusIcon}" style="width:12px;height:12px"></i> ${statusText}</span></td>
+              <td>${from} → ${to}</td>
+              <td><span class="badge ${deliveryBadge}">${deliveryText}</span></td>
+              <td><span class="badge ${paymentBadge}">${paymentText}</span></td>
               <td><code>${o.winformHdCode || '—'}</code></td>
             </tr>
           `;
@@ -186,19 +234,27 @@
       const createdTime = new Date(order.createdAt).toLocaleTimeString('vi-VN') + ' ' + new Date(order.createdAt).toLocaleDateString('vi-VN');
       document.getElementById('det-created').textContent = createdTime;
       
-      let badgeClass = 'badge-pending';
-      let statusText = 'Chờ duyệt';
-      let statusIcon = 'clock';
-      if (order.syncStatus === 'SYNCED') {
-        badgeClass = 'badge-synced';
-        statusText = 'Đã duyệt';
-        statusIcon = 'check-circle';
-      } else if (order.syncStatus === 'FAILED') {
-        badgeClass = 'badge-failed';
-        statusText = 'Lỗi sync';
-        statusIcon = 'x-circle';
+      let deliveryBadge = 'badge-pending';
+      let deliveryText = 'Chờ duyệt';
+      if (order.deliveryStatus === 'APPROVED') { deliveryBadge = 'badge-synced'; deliveryText = 'Đã duyệt (Chờ giao)'; }
+      else if (order.deliveryStatus === 'DELIVERED') { deliveryBadge = 'badge-synced'; deliveryText = 'Đang giao'; }
+      else if (order.deliveryStatus === 'RECEIVED') { deliveryBadge = 'badge-success'; deliveryText = 'Đã nhận hàng'; }
+      document.getElementById('det-delivery').innerHTML = `<span class="badge ${deliveryBadge}">${deliveryText}</span>`;
+
+      let paymentBadge = 'badge-pending';
+      let paymentText = 'Chưa thanh toán';
+      if (order.paymentStatus === 'PAID') { paymentBadge = 'badge-success'; paymentText = 'Đã thanh toán'; }
+      else if (order.paymentStatus === 'OVERDUE') { paymentBadge = 'badge-failed'; paymentText = 'Quá hạn'; }
+      document.getElementById('det-payment').innerHTML = `<span class="badge ${paymentBadge}">${paymentText}</span>`;
+      
+      const btnConfirm = document.getElementById('btn-confirm-received');
+      if (order.deliveryStatus === 'DELIVERED' || order.deliveryStatus === 'APPROVED') {
+        btnConfirm.style.display = 'inline-flex';
+        btnConfirm.onclick = () => confirmReceived(order.id);
+      } else {
+        btnConfirm.style.display = 'none';
       }
-      document.getElementById('det-status').innerHTML = `<span class="badge ${badgeClass}"><i data-lucide="${statusIcon}" style="width:12px;height:12px"></i> ${statusText}</span>`;
+      
       document.getElementById('det-note').textContent = order.ghiChu || '—';
 
       const itemsContainer = document.getElementById('detail-items-list');
@@ -220,6 +276,115 @@
 
       document.getElementById('det-total').textContent = total.toLocaleString('vi-VN') + ' đ';
       lucide.createIcons();
+    }
+
+    function openAgencyRequestModal() {
+      const orderCode = document.getElementById('det-code').textContent;
+      if (!orderCode || orderCode === '—') return;
+      document.getElementById('req_order_code').value = orderCode;
+      document.getElementById('req_disp_code').innerText = orderCode;
+      document.getElementById('agencyRequestModal').style.display = 'flex';
+      document.getElementById('req_note').value = '';
+    }
+
+    function closeAgencyRequestModal() {
+      document.getElementById('agencyRequestModal').style.display = 'none';
+    }
+
+    async function submitAgencyRequest() {
+      const payload = {
+        order_code: document.getElementById('req_order_code').value,
+        loai_yeu_cau: document.getElementById('req_type').value,
+        noi_dung: document.getElementById('req_note').value
+      };
+      
+      if (!payload.noi_dung) {
+        alert('Vui lòng nhập nội dung chi tiết!');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/agency/requests', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + localStorage.getItem('accessToken')
+          },
+          body: JSON.stringify(payload)
+        });
+        
+        if (response.ok) {
+          alert('Đã gửi yêu cầu/khiếu nại thành công! Quản trị viên sẽ sớm xử lý.');
+          closeAgencyRequestModal();
+        } else {
+          alert('Có lỗi xảy ra, vui lòng thử lại!');
+        }
+      } catch (e) {
+        alert('Lỗi: ' + e.message);
+      }
+    }
+
+    async function confirmReceived(id) {
+      if (!confirm('Bạn xác nhận đã nhận đủ hàng cho đơn này?')) return;
+      try {
+        const response = await fetch('/api/agency/orders/' + id + '/confirm-received', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + localStorage.getItem('accessToken') }
+        });
+        if (response.ok) {
+          alert('Đã xác nhận nhận hàng!');
+          loadOrders();
+          document.getElementById('detail-card').style.display = 'none';
+        } else {
+          alert('Có lỗi xảy ra!');
+        }
+      } catch (e) {
+        alert('Lỗi: ' + e.message);
+      }
+    }
+
+    function downloadPDF() {
+      const orderCode = document.getElementById('det-code').textContent;
+      if (!orderCode || orderCode === '—') return;
+      
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      
+      // Setup simple fonts/texts (jsPDF standard fonts don't support full UTF-8 Vietnamese out of the box without custom fonts, so we use ASCII replacements or basic text)
+      // For a real production app, we would load a custom TTF font. Here we will try our best with standard text.
+      doc.setFontSize(18);
+      doc.text('HOA DON DAT HANG', 105, 20, { align: 'center' });
+      
+      doc.setFontSize(12);
+      doc.text('Ma don: ' + orderCode, 20, 40);
+      doc.text('Khoang thoi gian: ' + document.getElementById('det-dates').textContent, 20, 50);
+      doc.text('Ngay dat: ' + document.getElementById('det-created').textContent, 20, 60);
+      
+      let y = 80;
+      doc.text('Danh sach san pham:', 20, y);
+      y += 10;
+      
+      const items = document.querySelectorAll('#detail-items-list .detail-item');
+      items.forEach(item => {
+         const texts = item.innerText.split('\n');
+         const name = texts[0] || '';
+         const priceInfo = texts[1] || '';
+         const total = texts[2] || '';
+         
+         // Basic ASCII conversion for PDF
+         const nameAscii = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D");
+         const priceAscii = priceInfo.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D");
+         
+         doc.text('- ' + nameAscii + ' (' + priceAscii + ')', 20, y);
+         y += 10;
+      });
+      
+      y += 10;
+      const totalStr = document.getElementById('det-total').textContent.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "VND");
+      doc.setFontSize(14);
+      doc.text('TONG TIEN: ' + totalStr, 20, y);
+      
+      doc.save('HoaDon_' + orderCode + '.pdf');
     }
 
     loadOrders();

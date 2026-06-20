@@ -39,6 +39,18 @@ public class WebOrder {
     @Column(name = "winform_hd_code")
     private String winformHdCode;
     
+    @Column(name = "payment_status")
+    private String paymentStatus; // UNPAID | CHỜ XÁC NHẬN | PAID
+    
+    @Column(name = "delivery_status")
+    private String deliveryStatus;
+    
+    @Column(name = "receipt_url")
+    private String receiptUrl;
+    
+    @Column(name = "order_type")
+    private String orderType;     // THUONG | BO_SUNG
+    
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;
 

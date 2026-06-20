@@ -32,6 +32,14 @@
           <i data-lucide="shopping-cart" class="nav-icon"></i>
           <span>Đơn hàng của tôi</span>
         </a>
+        <a href="/agency/debt.html" class="nav-item">
+          <i data-lucide="wallet" class="nav-icon"></i>
+          <span>Công nợ</span>
+        </a>
+        <a href="/agency/requests.html" class="nav-item">
+          <i data-lucide="help-circle" class="nav-icon"></i>
+          <span>Lịch sử khiếu nại</span>
+        </a>
       </div>
     </div>
 
@@ -110,6 +118,11 @@
           <label class="form-label">Ghi chú:</label>
           <textarea id="order-note" class="form-textarea" rows="2" placeholder="Ví dụ: Đặt bổ sung số lượng..."></textarea>
         </div>
+        
+        <div class="form-group" style="display:flex; align-items:center; gap:8px;">
+          <input type="checkbox" id="order-isBoSung" style="width:16px; height:16px;">
+          <label for="order-isBoSung" style="color:var(--text-primary); font-weight:600; cursor:pointer;">Đơn đặt bổ sung giữa kỳ</label>
+        </div>
 
         <div style="margin-top: 1.25rem;">
           <div style="font-size:0.78rem; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.5rem; display:flex; align-items:center; gap:0.4rem;">
@@ -126,10 +139,16 @@
           <span id="cart-total" style="color: var(--accent-primary);">0 đ</span>
         </div>
 
-        <button class="order-btn" onclick="submitOrder()">
-          <i data-lucide="send"></i>
-          Gửi đơn hàng đặt báo
-        </button>
+        <div style="display:flex; gap:1rem; margin-top:1rem;">
+          <button class="btn btn-secondary" onclick="saveAsTemplate()" style="flex:1;">
+            <i data-lucide="save" style="width:18px;height:18px;margin-right:4px;"></i>
+            Lưu thành Mẫu
+          </button>
+          <button class="order-btn" onclick="submitOrder()" style="flex:2;">
+            <i data-lucide="send"></i>
+            Gửi đơn hàng đặt báo
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -197,7 +216,7 @@
       }
     }
 
-    function addToCart(maBao) {
+    async function addToCart(maBao) {
       const pub = publicationsData.find(p => p.maBao === maBao);
       if (!pub) return;
 
@@ -205,11 +224,22 @@
       if (existing) {
         existing.soLuong += 10;
       } else {
+        let defaultQty = 10;
+        let suggestionText = '';
+        try {
+          const res = await apiGet('/agency/forecast/' + maBao);
+          if (res && res.suggested && res.suggested > 0) {
+            defaultQty = res.suggested;
+            suggestionText = ' (Gợi ý từ hệ thống)';
+          }
+        } catch (e) {}
+
         cart.push({
           maBao: pub.maBao,
           ten: pub.ten,
           donGia: pub.donGia,
-          soLuong: 10
+          soLuong: defaultQty,
+          suggestion: suggestionText
         });
       }
       renderCart();
@@ -245,6 +275,7 @@
             <div style="flex:1;">
               <div class="cart-item-name">${item.ten}</div>
               <small style="color: var(--text-muted)">${item.donGia.toLocaleString('vi-VN')} đ</small>
+              ${item.suggestion ? `<div style="font-size:0.75rem; color:var(--accent-primary); margin-top:2px;">✨ Dự báo: ${item.soLuong} tờ${item.suggestion}</div>` : ''}
             </div>
             <div style="display:flex; align-items:center; gap:0.5rem;">
               <input type="number" class="cart-qty-input" value="${item.soLuong}" onchange="updateQty('${item.maBao}', this.value)">
@@ -267,6 +298,7 @@
         tuNgay: document.getElementById('order-fromDate').value,
         denNgay: document.getElementById('order-toDate').value,
         ghiChu: document.getElementById('order-note').value,
+        isBoSung: document.getElementById('order-isBoSung').checked,
         items: cart.map(item => ({
           maBao: item.maBao,
           soLuong: item.soLuong
@@ -284,7 +316,66 @@
       }
     }
 
-    loadPublications();
+    async function saveAsTemplate() {
+      if (cart.length === 0) {
+        alert('Vui lòng chọn ít nhất một đầu báo để lưu mẫu!');
+        return;
+      }
+      const templateName = prompt("Nhập tên cho mẫu đặt hàng này (VD: Mẫu thường ngày):");
+      if (!templateName) return;
+
+      const body = {
+        templateName: templateName,
+        items: cart.map(item => ({
+          maBao: item.maBao,
+          soLuong: item.soLuong
+        }))
+      };
+
+      const res = await apiPost('/agency/templates', body);
+      if (res && res.success) {
+        alert('Lưu mẫu thành công!');
+      } else {
+        alert('Lỗi khi lưu mẫu.');
+      }
+    }
+
+    async function checkTemplateToLoad() {
+      const templateId = localStorage.getItem('useTemplateId');
+      if (templateId) {
+        localStorage.removeItem('useTemplateId');
+        const data = await apiGet('/agency/templates');
+        if (data) {
+          const t = data.find(x => x.id == templateId);
+          if (t && t.items) {
+            // Check if publication still exists
+            cart = [];
+            let missing = [];
+            t.items.forEach(i => {
+              const pub = publicationsData.find(p => p.maBao === i.ma_bao);
+              if (pub) {
+                cart.push({
+                  maBao: pub.maBao,
+                  ten: pub.ten,
+                  donGia: pub.donGia,
+                  soLuong: i.so_luong
+                });
+              } else {
+                missing.push(i.ten_bao || i.ma_bao);
+              }
+            });
+            if (missing.length > 0) {
+              alert("Lưu ý: Các báo sau đã ngừng phát hành và được loại bỏ khỏi mẫu: " + missing.join(", "));
+            }
+            renderCart();
+          }
+        }
+      }
+    }
+
+    loadPublications().then(() => {
+      checkTemplateToLoad();
+    });
   </script>
 </body>
 </html>

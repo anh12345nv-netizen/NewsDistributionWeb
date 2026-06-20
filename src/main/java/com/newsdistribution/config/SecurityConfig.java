@@ -30,7 +30,7 @@ public class SecurityConfig {
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 
                 // Allow static files publicly
-                .requestMatchers("/", "/index.html", "/login.html", "/register.html", "/favicon.ico", "/js/**", "/css/**", "/images/**", "/admin/**", "/agency/**", "/accountant/**").permitAll()
+                .requestMatchers("/", "/index.html", "/login.html", "/register.html", "/favicon.ico", "/js/**", "/css/**", "/images/**", "/admin/**", "/agency/**", "/accountant/**", "/uploads/**").permitAll()
                 
                 // API roles
                 .requestMatchers("/api/agency/**").hasRole("AGENCY")

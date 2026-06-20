@@ -10,12 +10,24 @@
   <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7/bundles/stomp.umd.min.js"></script>
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Leaflet MarkerCluster -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+  <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+  <!-- SheetJS & jsPDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+  
   <script src="/js/api.js"></script>
   <script src="/js/websocket.js"></script>
   <style>
     .table-container {
-      background: var(--card-bg);
-      border: 1px solid var(--border-color);
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
       border-radius: 12px;
       padding: 20px;
       overflow-x: auto;
@@ -23,9 +35,9 @@
     }
 
     .nav-item.active {
-      background: var(--nav-hover);
-      color: var(--accent-blue);
-      border-right: 3px solid var(--accent-blue);
+      background: var(--accent-primary-light);
+      color: var(--accent-primary);
+      border-right: 3px solid var(--accent-primary);
     }
     
     .charts-grid {
@@ -36,8 +48,8 @@
     }
 
     .chart-container {
-      background: var(--card-bg);
-      border: 1px solid var(--border-color);
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
       border-radius: 12px;
       padding: 20px;
       height: 350px;
@@ -47,6 +59,68 @@
     .full-width-chart {
       grid-column: 1 / -1;
       height: 400px;
+    }
+
+    /* Modal Styles */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal-content {
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-radius: 12px;
+      padding: 24px;
+      width: 500px;
+      max-width: 90%;
+      color: var(--text-primary);
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border-light);
+      padding-bottom: 10px;
+    }
+    .modal-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+    .modal-close {
+      cursor: pointer;
+      color: var(--text-muted);
+      background: none;
+      border: none;
+    }
+    .modal-close:hover {
+      color: var(--accent-red);
+    }
+    .user-detail-row {
+      margin-bottom: 12px;
+      display: flex;
+    }
+    .user-detail-label {
+      width: 150px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+    .btn-view {
+      background: var(--accent-primary);
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    .btn-view:hover {
+      opacity: 0.9;
     }
   </style>
 </head>
@@ -74,9 +148,21 @@
           <i data-lucide="truck" class="nav-icon"></i>
           <span>Điều phối Web</span>
         </a>
+        <a href="#" class="nav-item" onclick="showMap(this)">
+          <i data-lucide="map" class="nav-icon"></i>
+          <span>Bản đồ Phân bố</span>
+        </a>
         <a href="#" class="nav-item" onclick="loadTable('web_order_items', this)">
           <i data-lucide="receipt" class="nav-icon"></i>
           <span>Chi tiết Điều phối</span>
+        </a>
+        <a href="#" class="nav-item" onclick="showRequests(this)">
+          <i data-lucide="help-circle" class="nav-icon"></i>
+          <span>Khiếu nại / Hỗ trợ</span>
+        </a>
+        <a href="#" class="nav-item" onclick="showHistory(this)">
+          <i data-lucide="history" class="nav-icon"></i>
+          <span>Lịch sử truy vết</span>
         </a>
       </div>
     </div>
@@ -136,6 +222,28 @@
         </div>
       </div>
 
+      <!-- Comparison Box -->
+      <div class="section-card" style="margin-top:20px; background: var(--bg-card); padding: 20px; border-radius: 12px; border: 1px solid var(--border-light);">
+        <div class="section-header" style="margin-bottom: 15px;">
+          <div class="section-title">
+            <i data-lucide="bar-chart-2"></i>
+            Tăng trưởng: Hôm nay vs Hôm qua
+          </div>
+        </div>
+        <div style="display: flex; gap: 20px;">
+          <div style="flex: 1; padding: 15px; border-radius: 8px; background: rgba(59, 130, 246, 0.1);">
+            <div style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 5px;">Doanh thu Hôm nay</div>
+            <div style="font-size: 1.5rem; font-weight: bold; color: var(--accent-primary);" id="comp-rev-today">0 đ</div>
+            <div style="font-size: 0.9rem; margin-top: 5px;" id="comp-rev-trend">--</div>
+          </div>
+          <div style="flex: 1; padding: 15px; border-radius: 8px; background: rgba(168, 85, 247, 0.1);">
+            <div style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 5px;">Số đơn Hôm nay</div>
+            <div style="font-size: 1.5rem; font-weight: bold; color: var(--accent-purple);" id="comp-ord-today">0 đơn</div>
+            <div style="font-size: 0.9rem; margin-top: 5px;" id="comp-ord-trend">--</div>
+          </div>
+        </div>
+      </div>
+
       <!-- Charts Grid -->
       <div class="charts-grid">
         <div class="chart-container full-width-chart">
@@ -183,6 +291,16 @@
 
     <!-- Table Section for DB Web -->
     <div id="table-section" class="table-container">
+      <div id="table-toolbar" style="display:none; margin-bottom: 15px; justify-content: space-between; align-items: center;">
+        <div style="position: relative; width: 300px;">
+          <i data-lucide="search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-muted);"></i>
+          <input type="text" id="searchInput" onkeyup="filterTable()" placeholder="Tìm kiếm dữ liệu..." style="width: 100%; padding: 8px 10px 8px 32px; border-radius: 6px; border: 1px solid var(--border-light); background: var(--bg-main); color: var(--text-primary);">
+        </div>
+        <div>
+          <button class="btn-view" style="background:#10b981; margin-right: 5px;" onclick="exportExcel()"><i data-lucide="file-spreadsheet" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"></i> Xuất Excel</button>
+          <button class="btn-view" style="background:#ef4444;" onclick="exportPDF()"><i data-lucide="file-text" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"></i> Xuất PDF</button>
+        </div>
+      </div>
       <div id="table-loading" style="text-align:center; padding:30px; color:var(--text-muted);">
         <i data-lucide="loader" class="animate-spin"></i> Đang tải dữ liệu từ DB Website...
       </div>
@@ -192,6 +310,155 @@
       </table>
     </div>
 
+    <!-- Map Section -->
+    <div id="map-section" style="display:none; height: calc(100vh - 150px); border-radius: 12px; overflow: hidden; border: 1px solid var(--border-light); margin-top: 10px;">
+      <div id="agencyMap" style="width: 100%; height: 100%; z-index: 1;"></div>
+    </div>
+
+    <!-- Requests Section -->
+    <div id="requests-section" style="display:none; margin-top: 20px;">
+      <div class="section-card">
+        <div class="section-header" style="justify-content: space-between; align-items: center;">
+          <div class="section-title">
+            <i data-lucide="help-circle"></i>
+            Quản lý Yêu cầu / Khiếu nại Đại lý
+          </div>
+          <button class="btn-view" style="background:#3b82f6; display: inline-flex; align-items: center; gap: 6px;" onclick="openCreateRequestModal()"><i data-lucide="plus" style="width: 16px; height: 16px;"></i> Tạo Phiếu Yêu Cầu</button>
+        </div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>MÃ KH</th>
+              <th>MÃ ĐƠN HÀNG</th>
+              <th>LOẠI YÊU CẦU</th>
+              <th>NỘI DUNG</th>
+              <th>TRẠNG THÁI</th>
+              <th>PHẢN HỒI</th>
+              <th>THAO TÁC</th>
+            </tr>
+          </thead>
+          <tbody id="requests-tbody">
+            <tr><td colspan="8" style="text-align: center;">Đang tải...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- History Section -->
+    <div id="history-section" style="display:none; margin-top: 20px;">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">
+            <i data-lucide="history"></i>
+            Lịch sử Truy vết Đơn hàng
+          </div>
+        </div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>THỜI GIAN</th>
+              <th>MÃ ĐƠN HÀNG</th>
+              <th>NGƯỜI THỰC HIỆN</th>
+              <th>HÀNH ĐỘNG</th>
+              <th>GHI CHÚ CHI TIẾT</th>
+            </tr>
+          </thead>
+          <tbody id="history-tbody">
+            <tr><td colspan="5" style="text-align: center;">Đang tải...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Modal User Details -->
+  <div id="userModal" class="modal-overlay" style="display:none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Thông tin Đại lý <span id="modalUsername" style="color:var(--text-muted); font-size:0.9rem"></span></h3>
+        <button class="btn-close" onclick="closeUserModal()"><i data-lucide="x"></i></button>
+      </div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <!-- Modal Order Details -->
+  <div id="orderModal" class="modal-overlay" style="display:none;">
+    <div class="modal-content" style="width: 700px; max-width: 95%;">
+      <div class="modal-header">
+        <h3 class="modal-title">Chi tiết Đơn Điều Phối <span id="modalOrderCode" style="color:var(--accent-primary)"></span></h3>
+        <button class="btn-close" onclick="closeOrderModal()"><i data-lucide="x"></i></button>
+      </div>
+      <div id="modalOrderBody" style="max-height: 60vh; overflow-y: auto;">
+        <p>Đang tải dữ liệu...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Create Request -->
+  <div id="createRequestModal" class="modal-overlay" style="display:none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Tạo Yêu cầu Điều chỉnh</h3>
+        <button class="btn-close" onclick="closeCreateRequestModal()"><i data-lucide="x"></i></button>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 15px;">
+        <div>
+          <label style="display:block; margin-bottom: 5px; color: var(--text-muted);">Mã Khách Hàng</label>
+          <input type="text" id="req_makh" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-light); background: var(--bg-main); color: var(--text-primary);">
+        </div>
+        <div>
+          <label style="display:block; margin-bottom: 5px; color: var(--text-muted);">Mã Đơn Hàng cần xử lý</label>
+          <input type="text" id="req_order_code" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-light); background: var(--bg-main); color: var(--text-primary);">
+        </div>
+        <div>
+          <label style="display:block; margin-bottom: 5px; color: var(--text-muted);">Loại Yêu Cầu</label>
+          <select id="req_type" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-light); background: var(--bg-main); color: var(--text-primary);">
+            <option value="BỔ_SUNG">Bổ sung hàng hóa (Giao thiếu)</option>
+            <option value="HỎI_ĐÁP">Hỏi đáp / Phản ánh</option>
+            <option value="LỖI_IN_ẤN">Báo lỗi in ấn</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block; margin-bottom: 5px; color: var(--text-muted);">Nội dung chi tiết</label>
+          <textarea id="req_note" rows="3" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-light); background: var(--bg-main); color: var(--text-primary);"></textarea>
+        </div>
+        <button onclick="submitCreateRequest()" class="btn-view" style="background: var(--accent-primary); width: 100%; justify-content: center; padding: 10px; margin-top: 10px;">Gửi Yêu Cầu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Approve Request -->
+  <div id="approveRequestModal" class="modal-overlay" style="display:none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Duyệt Yêu Cầu <span id="appr_req_id" style="color:var(--accent-primary)"></span></h3>
+        <button class="btn-close" onclick="closeApproveRequestModal()"><i data-lucide="x"></i></button>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 15px;">
+        <p style="color: var(--accent-green);">Hệ thống sẽ tự động sinh Đơn hàng bổ sung (0 đồng) cho Mã đơn gốc.</p>
+        <input type="hidden" id="appr_id">
+        <div>
+          <label style="display:block; margin-bottom: 5px; color: var(--text-muted);">Mã Báo (ví dụ: B001)</label>
+          <input type="text" id="appr_ma_bao" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-light); background: var(--bg-main); color: var(--text-primary);">
+        </div>
+        <div>
+          <label style="display:block; margin-bottom: 5px; color: var(--text-muted);">Tên Báo (ví dụ: Tuổi Trẻ)</label>
+          <input type="text" id="appr_ten_bao" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-light); background: var(--bg-main); color: var(--text-primary);">
+        </div>
+        <div>
+          <label style="display:block; margin-bottom: 5px; color: var(--text-muted);">Số lượng bổ sung</label>
+          <input type="number" id="appr_so_luong" value="1" min="1" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-light); background: var(--bg-main); color: var(--text-primary);">
+        </div>
+        <div>
+          <label style="display:block; margin-bottom: 5px; color: var(--text-muted);">Ghi chú phản hồi (Trả lời Đại lý)</label>
+          <textarea id="appr_reply" rows="2" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-light); background: var(--bg-main); color: var(--text-primary);">Đã duyệt và tạo đơn bổ sung.</textarea>
+        </div>
+        <button onclick="submitApproveRequest()" class="btn-view" style="background: var(--accent-green); width: 100%; justify-content: center; padding: 10px; margin-top: 10px;">Duyệt & Tạo Đơn Bổ Sung</button>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -201,23 +468,24 @@
     document.getElementById('admin-name').textContent = localStorage.getItem('tenHienThi') || 'Web Admin';
     document.getElementById('admin-avatar').textContent = (localStorage.getItem('tenHienThi') || 'A').charAt(0).toUpperCase();
 
-    function setActiveMenu(element) {
-      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-      if (element) {
-        element.classList.add('active');
-      }
-    }
-
-    function showOverview(element) {
-      setActiveMenu(element);
-      document.getElementById('page-title').innerText = 'Tổng quan Doanh thu Website';
-      document.getElementById('page-subtitle').innerText = 'Hệ thống phân phối báo in - Theo dõi đơn hàng Web';
+    function showOverview(btn) {
+      document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+      if(btn) btn.classList.add('active');
+      
       document.getElementById('overview-section').style.display = 'block';
       document.getElementById('table-section').style.display = 'none';
+      document.getElementById('map-section').style.display = 'none';
+      document.getElementById('page-title').innerText = 'Tổng quan Doanh thu Website';
+      document.getElementById('page-subtitle').innerText = 'Hệ thống phân phối báo in - Theo dõi đơn hàng Web';
     }
 
-    async function loadTable(tableName, element) {
-      setActiveMenu(element);
+    async function loadTable(tableName, btn) {
+      document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+      if(btn) btn.classList.add('active');
+
+      document.getElementById('overview-section').style.display = 'none';
+      document.getElementById('map-section').style.display = 'none';
+      document.getElementById('table-section').style.display = 'block';
       
       let title = tableName;
       if(tableName === 'web_users') title = 'Đại lý trên Web';
@@ -227,26 +495,25 @@
       document.getElementById('page-title').innerText = 'Bảng dữ liệu: ' + title;
       document.getElementById('page-subtitle').innerText = 'Hiển thị dữ liệu trực tiếp từ Database Website (NewsDistributionWeb)';
       
-      document.getElementById('overview-section').style.display = 'none';
-      document.getElementById('table-section').style.display = 'block';
-      
       const thead = document.getElementById('data-thead');
       const tbody = document.getElementById('data-tbody');
       const loading = document.getElementById('table-loading');
       const tableEl = document.getElementById('data-table');
+      const toolbarEl = document.getElementById('table-toolbar');
+      const searchInput = document.getElementById('searchInput');
       
       thead.innerHTML = '';
       tbody.innerHTML = '';
       tableEl.style.display = 'none';
+      toolbarEl.style.display = 'none';
+      searchInput.value = '';
       loading.style.display = 'block';
       loading.innerHTML = '<i data-lucide="loader" class="animate-spin"></i> Đang tải dữ liệu...';
       lucide.createIcons();
 
       try {
         const response = await fetch('/api/admin/tables/' + tableName, {
-          headers: { 
-            'Authorization': 'Bearer ' + localStorage.getItem('accessToken') 
-          }
+          headers: { 'Authorization': 'Bearer ' + localStorage.getItem('accessToken') }
         });
         
         if (response.status === 401 || response.status === 403) {
@@ -256,28 +523,86 @@
         const data = await response.json();
         loading.style.display = 'none';
         tableEl.style.display = 'table';
+        toolbarEl.style.display = 'flex';
 
         if (!data || data.length === 0) {
           tbody.innerHTML = '<tr><td colspan="100%" style="text-align:center;">Không có dữ liệu</td></tr>';
           return;
         }
 
-        const keys = Object.keys(data[0]);
-        let headRow = '<tr>';
-        keys.forEach(k => { headRow += `<th>${k}</th>`; });
-        headRow += '</tr>';
-        thead.innerHTML = headRow;
-
-        let bodyHtml = '';
-        data.forEach(row => {
-          bodyHtml += '<tr>';
-          keys.forEach(k => { 
-            bodyHtml += `<td>${row[k] !== null ? row[k] : ''}</td>`; 
+        if (tableName === 'web_users') {
+          document.getElementById('page-subtitle').innerText = 'Hệ thống phân phối báo in - Theo dõi đơn hàng Web | Tổng số đại lý: ' + data.length;
+          let headRow = '<tr><th>ID</th><th>TÊN HIỂN THỊ</th><th>EMAIL</th><th>ROLE</th><th>MÃ KH</th><th>TRẠNG THÁI</th><th>THAO TÁC</th></tr>';
+          thead.innerHTML = headRow;
+          let bodyHtml = '';
+          data.forEach(row => {
+            const rowDataStr = encodeURIComponent(JSON.stringify(row));
+            const isActive = row.is_active || row.IS_ACT ? 'Hoạt động' : 'Khóa';
+            bodyHtml += `<tr>
+              <td>${row.id || row.ID || ''}</td>
+              <td>${row.ten_hien_thi || row.TEN_HIEN_THI || ''}</td>
+              <td>${row.email || row.EMAIL || ''}</td>
+              <td>${row.role || row.ROLE || ''}</td>
+              <td>${row.makh || row.MAKH || ''}</td>
+              <td>${isActive}</td>
+              <td><button class="btn-view" onclick="viewUserDetails('${rowDataStr}')">Xem chi tiết</button></td>
+            </tr>`;
           });
-          bodyHtml += '</tr>';
-        });
-        tbody.innerHTML = bodyHtml;
-
+          tbody.innerHTML = bodyHtml;
+        } else if (tableName === 'web_orders') {
+          document.getElementById('page-subtitle').innerText = 'Hệ thống phân phối báo in - Theo dõi đơn hàng Web | Tổng số đơn: ' + data.length;
+          let headRow = '<tr><th>ID</th><th>MÃ ĐƠN</th><th>MÃ KH</th><th>TỪ NGÀY</th><th>ĐẾN NGÀY</th><th>TRẠNG THÁI GIAO HÀNG</th><th>THANH TOÁN</th><th>THAO TÁC</th></tr>';
+          thead.innerHTML = headRow;
+          let bodyHtml = '';
+          data.forEach(row => {
+            const rowDataStr = encodeURIComponent(JSON.stringify(row));
+            
+            let deliveryText = row.delivery_status || 'PENDING';
+            let paymentText = row.payment_status || 'UNPAID';
+            
+            let actionSelect = `
+              <select onchange="updateOrderStatus(${row.id}, 'delivery', this.value)" style="margin-bottom: 4px; padding: 4px; font-size: 0.8rem;">
+                <option value="PENDING" ${deliveryText === 'PENDING' ? 'selected' : ''}>Chờ duyệt</option>
+                <option value="APPROVED" ${deliveryText === 'APPROVED' ? 'selected' : ''}>Đã duyệt</option>
+                <option value="DELIVERED" ${deliveryText === 'DELIVERED' ? 'selected' : ''}>Đang giao</option>
+                <option value="RECEIVED" ${deliveryText === 'RECEIVED' ? 'selected' : ''}>Đã nhận</option>
+              </select>
+              <select onchange="updateOrderStatus(${row.id}, 'payment', this.value)" style="padding: 4px; font-size: 0.8rem;">
+                <option value="UNPAID" ${paymentText === 'UNPAID' ? 'selected' : ''}>Chưa TT</option>
+                <option value="PAID" ${paymentText === 'PAID' ? 'selected' : ''}>Đã TT</option>
+                <option value="OVERDUE" ${paymentText === 'OVERDUE' ? 'selected' : ''}>Quá hạn</option>
+              </select>
+            `;
+            
+            bodyHtml += `<tr>
+              <td>${row.id || ''}</td>
+              <td>${row.order_code || ''}</td>
+              <td>${row.makh || ''}</td>
+              <td>${row.tu_ngay ? row.tu_ngay.substring(0, 10) : ''}</td>
+              <td>${row.den_ngay ? row.den_ngay.substring(0, 10) : ''}</td>
+              <td>${deliveryText}</td>
+              <td>${paymentText}</td>
+              <td>
+                ${actionSelect}
+                <button class="btn-view" style="margin-top: 4px; padding: 4px 8px; font-size: 0.8rem;" onclick="viewOrderDetails('${rowDataStr}')">Chi tiết</button>
+              </td>
+            </tr>`;
+          });
+          tbody.innerHTML = bodyHtml;
+        } else {
+          const keys = Object.keys(data[0]);
+          let headRow = '<tr>';
+          keys.forEach(k => { headRow += `<th>${k}</th>`; });
+          headRow += '</tr>';
+          thead.innerHTML = headRow;
+          let bodyHtml = '';
+          data.forEach(row => {
+            bodyHtml += '<tr>';
+            keys.forEach(k => { bodyHtml += `<td>${row[k] !== null ? row[k] : ''}</td>`; });
+            bodyHtml += '</tr>';
+          });
+          tbody.innerHTML = bodyHtml;
+        }
       } catch (error) {
         console.error("Error loading table:", error);
         loading.innerHTML = '<span style="color:var(--accent-red)">Lỗi khi tải dữ liệu</span>';
@@ -323,87 +648,430 @@
     
     let wChart, mChart, yChart;
 
-    async function loadRevenueCharts() {
+    async function loadDashboardCharts() {
       const token = localStorage.getItem('accessToken');
       const headers = { 'Authorization': 'Bearer ' + token };
-
       try {
-        const [dailyRes, monthlyRes, yearlyRes] = await Promise.all([
+        const [dailyRes, productsRes, agenciesRes] = await Promise.all([
           fetch('/api/admin/revenue/daily', { headers }),
-          fetch('/api/admin/revenue/monthly', { headers }),
-          fetch('/api/admin/revenue/yearly', { headers })
+          fetch('/api/admin/analytics/top-products', { headers }),
+          fetch('/api/admin/analytics/top-agencies', { headers })
         ]);
-
         const dailyData = await dailyRes.json();
-        const monthlyData = await monthlyRes.json();
-        const yearlyData = await yearlyRes.json();
-
-        // Calculate today's revenue roughly
+        const productsData = await productsRes.json();
+        const agenciesData = await agenciesRes.json();
         if(dailyData.length > 0) {
            let lastValue = dailyData[dailyData.length - 1].value;
            document.getElementById('val-revenue').innerText = lastValue.toLocaleString() + ' đ';
         } else {
            document.getElementById('val-revenue').innerText = '0 đ';
         }
-
-        renderChart('weeklyChart', 'bar', 'Doanh thu theo Ngày (Tuần qua)', dailyData, 'rgba(59, 130, 246, 0.8)');
-        renderChart('monthlyChart', 'line', 'Doanh thu theo Tháng (Năm nay)', monthlyData, 'rgba(34, 197, 94, 0.8)');
-        renderChart('yearlyChart', 'bar', 'Doanh thu theo Năm', yearlyData, 'rgba(168, 85, 247, 0.8)');
-
+        renderChart('weeklyChart', 'bar', 'Xu hướng Doanh thu theo Ngày', dailyData, 'rgba(59, 130, 246, 0.8)', 'Doanh thu (VNĐ)');
+        renderChart('monthlyChart', 'doughnut', 'Top Báo bán chạy nhất', productsData, null, 'Số lượng (tờ)');
+        renderChart('yearlyChart', 'horizontalBar', 'Top Đại lý mang lại doanh thu cao', agenciesData, 'rgba(168, 85, 247, 0.8)', 'Doanh thu (VNĐ)');
       } catch (e) {
-        console.error("Error loading revenue:", e);
+        console.error("Error loading charts:", e);
       }
     }
 
-    function renderChart(canvasId, type, title, rawData, colorStr) {
+    function renderChart(canvasId, type, title, rawData, colorStr, labelName = 'Giá trị') {
       const ctx = document.getElementById(canvasId).getContext('2d');
+      const isDoughnut = type === 'doughnut';
+      const bgColors = isDoughnut ? ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#ec4899'] : colorStr;
+      
       const labels = rawData.map(d => d.label);
       const values = rawData.map(d => d.value);
 
-      new Chart(ctx, {
-        type: type,
+      if (window[canvasId + 'Instance']) {
+        window[canvasId + 'Instance'].destroy();
+      }
+
+      window[canvasId + 'Instance'] = new Chart(ctx, {
+        type: type === 'horizontalBar' ? 'bar' : type,
         data: {
           labels: labels.length ? labels : ['Chưa có dữ liệu'],
           datasets: [{
-            label: 'Doanh thu (VNĐ)',
+            label: labelName,
             data: values.length ? values : [0],
-            backgroundColor: colorStr,
-            borderColor: colorStr,
-            borderWidth: 2,
+            backgroundColor: bgColors,
+            borderColor: isDoughnut ? '#1e293b' : colorStr,
+            borderWidth: isDoughnut ? 2 : 1,
             fill: type === 'line' ? false : true,
             tension: 0.4
           }]
         },
         options: {
+          indexAxis: type === 'horizontalBar' ? 'y' : 'x',
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            title: { display: true, text: title, color: '#f8fafc', font: {size: 15} }
+            title: { display: true, text: title, color: '#f8fafc', font: {size: 15} },
+            legend: { display: isDoughnut }
           }
         }
       });
     }
 
-    // Connect to WebSocket
-    connectWebSocket(
-      (orderData) => {
-        loadStats();
-        loadRevenueCharts();
-      },
-      (syncData) => {
-        loadSyncLogs();
+    function filterTable() {
+      const input = document.getElementById("searchInput");
+      const filter = input.value.toLowerCase();
+      const tbody = document.getElementById("data-tbody");
+      const tr = tbody.getElementsByTagName("tr");
+      for (let i = 0; i < tr.length; i++) {
+        const text = tr[i].innerText.toLowerCase();
+        if (text.indexOf(filter) > -1) {
+          tr[i].style.display = "";
+        } else {
+          tr[i].style.display = "none";
+        }
       }
-    );
+    }
 
-    // Initial load
+    let mapInstance = null;
+    let markersCluster = null;
+
+    async function showMap(btn) {
+      document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+      if(btn) btn.classList.add('active');
+
+      document.getElementById('overview-section').style.display = 'none';
+      document.getElementById('table-section').style.display = 'none';
+      document.getElementById('map-section').style.display = 'block';
+      document.getElementById('page-title').innerText = 'Bản đồ Phân bố Đại lý';
+      document.getElementById('page-subtitle').innerText = 'Trực quan hóa vị trí các đại lý để tối ưu việc điều phối giao báo';
+
+      if (!mapInstance) {
+        mapInstance = L.map('agencyMap').setView([10.7769, 106.7009], 13);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+          attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+        }).addTo(mapInstance);
+        
+        markersCluster = L.markerClusterGroup({
+          chunkedLoading: true,
+          spiderfyOnMaxZoom: true,
+          showCoverageOnHover: false
+        });
+      }
+
+      const token = localStorage.getItem('accessToken');
+      try {
+        const res = await fetch('/api/admin/tables/web_users', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        const agencies = await res.json();
+        
+        markersCluster.clearLayers();
+        
+        agencies.forEach(agency => {
+          const lat = 10.75 + Math.random() * 0.05;
+          const lng = 106.65 + Math.random() * 0.07;
+          
+          const marker = L.marker([lat, lng]);
+          marker.bindPopup(`
+            <div style="font-family: 'Inter', sans-serif; min-width: 200px;">
+              <h4 style="margin:0 0 8px 0; color:var(--accent-primary); font-size:1.1rem;">${agency.ten_doanh_nghiep || agency.ten_hien_thi}</h4>
+              <div style="font-size:0.85rem; color:var(--text-secondary); margin-bottom: 5px;">
+                <strong><i data-lucide="phone" style="width:12px;height:12px;"></i> SĐT:</strong> ${agency.so_dien_thoai || 'N/A'}
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-secondary);">
+                <strong><i data-lucide="map-pin" style="width:12px;height:12px;"></i> Địa chỉ:</strong> ${agency.dia_chi || 'N/A'}
+              </div>
+            </div>
+          `);
+          markersCluster.addLayer(marker);
+        });
+        
+        mapInstance.addLayer(markersCluster);
+        setTimeout(() => {
+          mapInstance.invalidateSize();
+          lucide.createIcons();
+        }, 300);
+      } catch(e) {
+        console.error("Error loading map data", e);
+      }
+    }
+
+    async function loadComparison() {
+      const token = localStorage.getItem('accessToken');
+      try {
+        const res = await fetch('/api/admin/analytics/compare', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        const data = await res.json();
+        
+        const revToday = data.today.revenue || 0;
+        const revYest = data.yesterday.revenue || 0;
+        const ordToday = data.today.orders || 0;
+        const ordYest = data.yesterday.orders || 0;
+        
+        document.getElementById('comp-rev-today').innerText = revToday.toLocaleString() + ' đ';
+        document.getElementById('comp-ord-today').innerText = ordToday + ' đơn';
+        
+        const calcTrend = (t, y) => {
+          if (y === 0) return t > 0 ? { p: 100, inc: true } : { p: 0, inc: true };
+          const diff = t - y;
+          const p = Math.round(Math.abs(diff) / y * 100);
+          return { p, inc: diff >= 0 };
+        };
+        
+        const rTrend = calcTrend(revToday, revYest);
+        const oTrend = calcTrend(ordToday, ordYest);
+        
+        const formatTrend = (t) => {
+          if (t.p === 0) return `<span style="color:var(--text-muted)">Không đổi so với hôm qua</span>`;
+          if (t.inc) return `<span style="color:var(--accent-green)"><i data-lucide="trending-up" style="width:14px;height:14px;vertical-align:middle;"></i> Tăng ${t.p}%</span> so với hôm qua`;
+          return `<span style="color:var(--accent-red)"><i data-lucide="trending-down" style="width:14px;height:14px;vertical-align:middle;"></i> Giảm ${t.p}%</span> so với hôm qua`;
+        };
+        
+        document.getElementById('comp-rev-trend').innerHTML = formatTrend(rTrend);
+        document.getElementById('comp-ord-trend').innerHTML = formatTrend(oTrend);
+        lucide.createIcons();
+      } catch (e) {
+        console.error("Error loading comparison:", e);
+      }
+    }
+
+    function exportExcel() {
+      const table = document.getElementById("data-table");
+      const wb = XLSX.utils.table_to_book(table, {sheet: "Sheet1"});
+      XLSX.writeFile(wb, "BaoCao.xlsx");
+    }
+
+    function exportPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.text("Bao Cao Data", 14, 15);
+      doc.autoTable({ html: '#data-table', startY: 20 });
+      doc.save("BaoCao.pdf");
+    }
+
+    connectWebSocket((orderData) => { loadStats(); loadDashboardCharts(); loadComparison(); }, (syncData) => { loadSyncLogs(); });
     loadStats();
     loadSyncLogs();
-    loadRevenueCharts();
+    loadDashboardCharts();
+    loadComparison();
+    setInterval(() => { loadSyncLogs(); loadStats(); loadComparison(); }, 15000);
+
+    function viewUserDetails(encodedData) {
+      const user = JSON.parse(decodeURIComponent(encodedData));
+      const body = document.getElementById('modalBody');
+      const details = [
+        { label: 'Tên doanh nghiệp', value: user.ten_doanh_nghiep || user.TEN_DOANH_NGHIEP || 'N/A' },
+        { label: 'Mã số thuế', value: user.ma_so_thue || user.MA_SO_THUE || 'N/A' },
+        { label: 'Địa chỉ', value: user.dia_chi || user.DIA_CHI || 'N/A' },
+        { label: 'Số điện thoại', value: user.so_dien_thoai || user.SO_DIEN_THOAI || 'N/A' },
+        { label: 'Email', value: user.email || user.EMAIL || 'N/A' },
+        { label: 'Người đại diện', value: user.ten_hien_thi || user.TEN_HIEN_THI || 'N/A' },
+        { label: 'Ngày đăng ký', value: user.created_at || user.CREATED_AT ? new Date(user.created_at || user.CREATED_AT).toLocaleString('vi-VN') : 'N/A' }
+      ];
+      let html = '';
+      details.forEach(item => {
+        html += `
+          <div class="user-detail-row">
+            <div class="user-detail-label">${item.label}:</div>
+            <div>${item.value}</div>
+          </div>
+        `;
+      });
+      body.innerHTML = html;
+      document.getElementById('userModal').style.display = 'flex';
+    }
+
+    function closeUserModal() { document.getElementById('userModal').style.display = 'none'; }
+
+    async function viewOrderDetails(dataStr) {
+      const data = JSON.parse(decodeURIComponent(dataStr));
+      document.getElementById('orderModal').style.display = 'flex';
+      document.getElementById('modalOrderCode').innerText = data.order_code || '';
+      const body = document.getElementById('modalOrderBody');
+      body.innerHTML = '<p style="text-align:center">Đang tải dữ liệu chi tiết...</p>';
+      const token = localStorage.getItem('accessToken');
+      try {
+        const res = await fetch(`/api/admin/orders/${data.id}/items`, { headers: { 'Authorization': 'Bearer ' + token } });
+        const items = await res.json();
+        let html = `
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+            <div><strong>Khách hàng:</strong> ${data.makh || ''}</div>
+            <div><strong>Từ ngày:</strong> ${data.tu_ngay ? data.tu_ngay.substring(0, 10) : ''}</div>
+            <div><strong>Trạng thái:</strong> ${data.sync_status || ''}</div>
+            <div><strong>Đến ngày:</strong> ${data.den_ngay ? data.den_ngay.substring(0, 10) : ''}</div>
+            <div style="grid-column: 1 / -1;"><strong>Ghi chú:</strong> ${data.ghi_chu || ''}</div>
+          </div>
+        `;
+        if (items && items.length > 0) {
+          html += `
+            <table class="data-table" style="width: 100%">
+              <thead><tr><th>MÃ BÁO</th><th>TÊN BÁO</th><th>ĐƠN GIÁ</th><th>SỐ LƯỢNG</th><th>THÀNH TIỀN</th></tr></thead>
+              <tbody>
+          `;
+          let total = 0;
+          items.forEach(i => {
+            total += i.thanh_tien || 0;
+            html += `<tr><td>${i.ma_bao || ''}</td><td>${i.ten_bao || ''}</td><td>${(i.don_gia || 0).toLocaleString()}</td><td>${(i.so_luong || 0).toLocaleString()}</td><td>${(i.thanh_tien || 0).toLocaleString()}</td></tr>`;
+          });
+          html += `</tbody></table>
+            <div style="text-align:right; margin-top:15px; font-size:1.1rem; font-weight:bold; color:var(--accent-red)">
+              Tổng tiền: ${total.toLocaleString()} VNĐ
+            </div>`;
+        } else {
+          html += '<p style="color:var(--text-muted)">Đơn hàng này không có sản phẩm nào.</p>';
+        }
+        body.innerHTML = html;
+      } catch (e) { body.innerHTML = '<p style="color:var(--accent-red)">Lỗi tải dữ liệu chi tiết.</p>'; }
+    }
+
+    function closeOrderModal() { document.getElementById('orderModal').style.display = 'none'; }
+
+    // Requests and History Functions
+    function showRequests(btn) {
+      document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+      if(btn) btn.classList.add('active');
+      document.getElementById('overview-section').style.display = 'none';
+      document.getElementById('map-section').style.display = 'none';
+      document.getElementById('table-section').style.display = 'none';
+      document.getElementById('history-section').style.display = 'none';
+      document.getElementById('requests-section').style.display = 'block';
+      document.getElementById('page-title').innerText = 'Quản lý Yêu cầu / Khiếu nại';
+      document.getElementById('page-subtitle').innerText = 'Xử lý các yêu cầu điều chỉnh từ Đại lý';
+      loadRequests();
+    }
+
+    async function loadRequests() {
+      const tbody = document.getElementById('requests-tbody');
+      try {
+        const res = await fetch('/api/admin/requests', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('accessToken') } });
+        const data = await res.json();
+        if(data.length === 0) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center">Không có yêu cầu nào</td></tr>'; return; }
+        
+        let html = '';
+        data.forEach(r => {
+          let actionBtn = r.trang_thai === 'CHỜ DUYỆT' ? `<button class="btn-view" style="background:var(--accent-green)" onclick="openApproveRequestModal(${r.id})">Duyệt & Xử lý</button>` : '';
+          html += `<tr>
+            <td>${r.id}</td><td>${r.makh || ''}</td><td>${r.order_code || ''}</td>
+            <td>${r.loai_yeu_cau || ''}</td><td>${r.noi_dung || ''}</td>
+            <td><span style="color:${r.trang_thai === 'CHỜ DUYỆT' ? 'var(--accent-purple)' : 'var(--accent-green)'}; font-weight:bold">${r.trang_thai}</span></td>
+            <td>${r.admin_reply || ''}</td><td>${actionBtn}</td>
+          </tr>`;
+        });
+        tbody.innerHTML = html;
+      } catch(e) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:red">Lỗi tải dữ liệu</td></tr>'; }
+    }
+
+    function openCreateRequestModal() { document.getElementById('createRequestModal').style.display = 'flex'; }
+    function closeCreateRequestModal() { document.getElementById('createRequestModal').style.display = 'none'; }
     
-    setInterval(() => {
-      loadSyncLogs();
-      loadStats();
-    }, 15000);
+    async function submitCreateRequest() {
+      const payload = {
+        makh: document.getElementById('req_makh').value,
+        order_code: document.getElementById('req_order_code').value,
+        loai_yeu_cau: document.getElementById('req_type').value,
+        noi_dung: document.getElementById('req_note').value
+      };
+      try {
+        await fetch('/api/admin/requests', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('accessToken') },
+          body: JSON.stringify(payload)
+        });
+        closeCreateRequestModal();
+        loadRequests();
+      } catch(e) { alert('Lỗi: ' + e); }
+    }
+
+    function openApproveRequestModal(id) { 
+      document.getElementById('appr_req_id').innerText = '#' + id;
+      document.getElementById('appr_id').value = id;
+      document.getElementById('approveRequestModal').style.display = 'flex'; 
+    }
+    function closeApproveRequestModal() { document.getElementById('approveRequestModal').style.display = 'none'; }
+
+    async function submitApproveRequest() {
+      const id = document.getElementById('appr_id').value;
+      const payload = {
+        ma_bao: document.getElementById('appr_ma_bao').value,
+        ten_bao: document.getElementById('appr_ten_bao').value,
+        so_luong: document.getElementById('appr_so_luong').value,
+        admin_reply: document.getElementById('appr_reply').value
+      };
+      try {
+        const res = await fetch('/api/admin/requests/' + id + '/approve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('accessToken') },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if(data.success) {
+          alert('Đã duyệt thành công! Sinh mã đơn bổ sung: ' + data.new_order_code);
+          closeApproveRequestModal();
+          loadRequests();
+        } else {
+          alert('Lỗi: ' + data.error);
+        }
+      } catch(e) { alert('Lỗi: ' + e); }
+    }
+
+    function showHistory(btn) {
+      document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+      if(btn) btn.classList.add('active');
+      document.getElementById('overview-section').style.display = 'none';
+      document.getElementById('map-section').style.display = 'none';
+      document.getElementById('table-section').style.display = 'none';
+      document.getElementById('requests-section').style.display = 'none';
+      document.getElementById('history-section').style.display = 'block';
+      document.getElementById('page-title').innerText = 'Lịch sử Truy vết Đơn hàng';
+      document.getElementById('page-subtitle').innerText = 'Ghi nhận chi tiết mọi thao tác (Audit Log)';
+      loadHistory();
+    }
+
+    async function loadHistory() {
+      const tbody = document.getElementById('history-tbody');
+      try {
+        const res = await fetch('/api/admin/history', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('accessToken') } });
+        const data = await res.json();
+        if(data.length === 0) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center">Chưa có lịch sử</td></tr>'; return; }
+        
+        let html = '';
+        data.forEach(r => {
+          const date = r.created_at ? new Date(r.created_at).toLocaleString('vi-VN') : '';
+          html += `<tr>
+            <td>${date}</td><td><span style="color:var(--accent-primary); font-weight:bold">${r.order_code || ''}</span></td>
+            <td><span style="color:var(--accent-purple); font-weight:bold">${r.nguoi_thuc_hien || ''}</span></td>
+            <td><span style="padding: 4px 8px; border-radius: 4px; background: rgba(59,130,246,0.1); color: var(--accent-primary)">${r.loai_hanh_dong || ''}</span></td>
+            <td>${r.ghi_chu_chi_tiet || ''}</td>
+          </tr>`;
+        });
+        tbody.innerHTML = html;
+      } catch(e) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red">Lỗi tải dữ liệu</td></tr>'; }
+    }
+
+    async function updateOrderStatus(id, field, value) {
+      if (!confirm('Bạn có chắc muốn đổi trạng thái đơn hàng này?')) return;
+      try {
+        const payload = {};
+        if (field === 'delivery') payload.delivery_status = value;
+        if (field === 'payment') payload.payment_status = value;
+        
+        const res = await fetch('/api/admin/orders/' + id + '/update-status', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + localStorage.getItem('accessToken')
+          },
+          body: JSON.stringify(payload)
+        });
+        
+        if (res.ok) {
+          alert('Cập nhật trạng thái thành công!');
+          // reload the table
+          loadTable('web_orders');
+        } else {
+          alert('Cập nhật thất bại!');
+        }
+      } catch(e) {
+        alert('Lỗi: ' + e.message);
+      }
+    }
+
   </script>
 </body>
 </html>

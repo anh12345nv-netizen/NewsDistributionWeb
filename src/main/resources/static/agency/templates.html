@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mẫu đặt hàng định kỳ — News Distribution</title>
+  <link rel="stylesheet" href="/css/dashboard-shared.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/js/api.js"></script>
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <a href="/agency/dashboard.html" class="sidebar-brand">
+      <img src="/images/logo.png" alt="Logo" class="sidebar-brand-logo">
+      <div class="sidebar-brand-text">News<span>Distribution</span></div>
+    </a>
+
+    <div class="nav-section">
+      <div class="nav-section-label">Đại lý</div>
+      <div class="nav-links">
+        <a href="/agency/dashboard.html" class="nav-item">
+          <i data-lucide="layout-dashboard" class="nav-icon"></i>
+          <span>Dashboard</span>
+        </a>
+        <a href="/agency/publications.html" class="nav-item">
+          <i data-lucide="newspaper" class="nav-icon"></i>
+          <span>Đặt mua báo</span>
+        </a>
+        <a href="/agency/orders.html" class="nav-item">
+          <i data-lucide="shopping-cart" class="nav-icon"></i>
+          <span>Đơn hàng của tôi</span>
+        </a>
+        <a href="/agency/templates.html" class="nav-item active">
+          <i data-lucide="copy" class="nav-icon"></i>
+          <span>Mẫu đặt hàng (Định kỳ)</span>
+        </a>
+        <a href="/agency/debt.html" class="nav-item">
+          <i data-lucide="wallet" class="nav-icon"></i>
+          <span>Công nợ</span>
+        </a>
+        <a href="/agency/requests.html" class="nav-item">
+          <i data-lucide="help-circle" class="nav-icon"></i>
+          <span>Lịch sử khiếu nại</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="nav-logout">
+      <button class="nav-item" onclick="logout()">
+        <i data-lucide="log-out" class="nav-icon"></i>
+        <span>Đăng xuất</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1>Quản lý Mẫu đặt hàng</h1>
+        <p class="page-subtitle">Lưu mẫu để đặt báo định kỳ nhanh chóng mà không cần chọn lại từ đầu</p>
+      </div>
+      <div class="user-profile-pill">
+        <div class="user-avatar" id="agency-avatar">D</div>
+        <span id="agency-makh">—</span>
+      </div>
+    </div>
+
+    <div class="section-card" style="margin-top: 1.5rem;">
+      <div class="section-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <div class="section-title">
+          <i data-lucide="copy"></i>
+          Danh sách mẫu đã lưu
+        </div>
+        <a href="/agency/publications.html" class="btn btn-primary">Đến trang Đặt báo để tạo mẫu</a>
+      </div>
+      
+      <div id="templates-container" style="display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem;">
+        <p style="text-align: center; color: var(--text-muted);">Đang tải mẫu...</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    lucide.createIcons();
+    requireAuth('AGENCY');
+
+    const tenHienThi = localStorage.getItem('tenHienThi') || 'Đại lý';
+    const makh = localStorage.getItem('makh') || '';
+    
+    document.getElementById('agency-makh').textContent = `Mã KH: ${makh}`;
+    document.getElementById('agency-avatar').textContent = tenHienThi.charAt(0).toUpperCase();
+
+    async function loadTemplates() {
+      const data = await apiGet('/agency/templates');
+      const container = document.getElementById('templates-container');
+      
+      if (!data || data.length === 0) {
+        container.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 2rem;">Bạn chưa lưu mẫu đặt hàng nào.</p>';
+        return;
+      }
+
+      container.innerHTML = data.map(t => `
+        <div style="border: 1px solid var(--border-color); border-radius: 8px; padding: 1.5rem; background: var(--bg-color);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h3 style="margin: 0;">${t.template_name}</h3>
+            <div>
+              <button class="btn btn-secondary" onclick="deleteTemplate(${t.id})">Xóa mẫu</button>
+              <button class="btn btn-primary" onclick="useTemplate(${t.id})">Sử dụng mẫu này để đặt</button>
+            </div>
+          </div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Mã báo</th>
+                <th>Tên báo</th>
+                <th>Số lượng</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${t.items.map(i => `
+                <tr>
+                  <td>${i.ma_bao}</td>
+                  <td>${i.ten_bao}</td>
+                  <td style="color:var(--accent-primary); font-weight:bold;">${i.so_luong}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `).join('');
+    }
+
+    async function deleteTemplate(id) {
+      if (!confirm("Bạn có chắc chắn muốn xóa mẫu này?")) return;
+      const res = await apiDelete(\`/agency/templates/\${id}\`);
+      if (res && res.success) {
+        alert("Xóa thành công.");
+        loadTemplates();
+      } else {
+        alert("Có lỗi xảy ra khi xóa.");
+      }
+    }
+
+    function useTemplate(id) {
+      // In a real app, this would redirect to publications.html and pre-fill the cart.
+      // For this implementation, we will save the template id in localStorage and redirect.
+      localStorage.setItem('useTemplateId', id);
+      window.location.href = '/agency/publications.html';
+    }
+
+    loadTemplates();
+  </script>
+</body>
+</html>

@@ -2,6 +2,7 @@ package com.newsdistribution.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.Nationalized;
 import java.time.LocalDateTime;
 
 @Entity 
@@ -22,7 +23,8 @@ public class WebUser {
     private String role;       // AGENCY | ADMIN_WEB
     private String makh;       // maps to tabKHACHHANG.MAKH
     
-    @Column(name = "ten_hien_thi")
+    @Nationalized
+    @Column(name = "ten_hien_thi", columnDefinition = "NVARCHAR(255)")
     private String tenHienThi;
     
     private String email;
@@ -30,13 +32,15 @@ public class WebUser {
     @Column(name = "is_active")
     private Boolean isActive;
     
-    @Column(name = "ten_doanh_nghiep")
+    @Nationalized
+    @Column(name = "ten_doanh_nghiep", columnDefinition = "NVARCHAR(255)")
     private String tenDoanhNghiep;
     
     @Column(name = "ma_so_thue")
     private String maSoThue;
     
-    @Column(name = "dia_chi")
+    @Nationalized
+    @Column(name = "dia_chi", columnDefinition = "NVARCHAR(500)")
     private String diaChi;
     
     @Column(name = "so_dien_thoai")

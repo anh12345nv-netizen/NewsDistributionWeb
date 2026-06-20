@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Công nợ — News Distribution</title>
+  <link rel="stylesheet" href="/css/dashboard-shared.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/js/api.js"></script>
+  <style>
+    /* Modal Styles */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.5);
+    }
+    .modal-content {
+      background-color: var(--bg-card);
+      margin: 10% auto;
+      padding: 2rem;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 500px;
+      position: relative;
+    }
+    .close-modal {
+      position: absolute;
+      right: 1.5rem;
+      top: 1.5rem;
+      cursor: pointer;
+      color: var(--text-muted);
+    }
+    .bank-info {
+      background: var(--bg-color);
+      padding: 1rem;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+      font-family: monospace;
+      font-size: 1.1rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <a href="/agency/dashboard.html" class="sidebar-brand">
+      <img src="/images/logo.png" alt="Logo" class="sidebar-brand-logo">
+      <div class="sidebar-brand-text">News<span>Distribution</span></div>
+    </a>
+
+    <div class="nav-section">
+      <div class="nav-section-label">Đại lý</div>
+      <div class="nav-links">
+        <a href="/agency/dashboard.html" class="nav-item">
+          <i data-lucide="layout-dashboard" class="nav-icon"></i>
+          <span>Dashboard</span>
+        </a>
+        <a href="/agency/publications.html" class="nav-item">
+          <i data-lucide="newspaper" class="nav-icon"></i>
+          <span>Đặt mua báo</span>
+        </a>
+        <a href="/agency/orders.html" class="nav-item">
+          <i data-lucide="shopping-cart" class="nav-icon"></i>
+          <span>Đơn hàng của tôi</span>
+        </a>
+        <a href="/agency/debt.html" class="nav-item active">
+          <i data-lucide="wallet" class="nav-icon"></i>
+          <span>Công nợ</span>
+        </a>
+        <a href="/agency/requests.html" class="nav-item">
+          <i data-lucide="help-circle" class="nav-icon"></i>
+          <span>Lịch sử khiếu nại</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="nav-logout">
+      <button class="nav-item" onclick="logout()">
+        <i data-lucide="log-out" class="nav-icon"></i>
+        <span>Đăng xuất</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1>Quản lý Công Nợ</h1>
+        <p class="page-subtitle">Theo dõi hạn mức và các khoản nợ chưa thanh toán</p>
+      </div>
+      <div class="user-profile-pill">
+        <div class="user-avatar" id="agency-avatar">D</div>
+        <span id="agency-makh">—</span>
+      </div>
+    </div>
+
+    <div class="layout-columns">
+      <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(59, 130, 246, 0.1); color: var(--accent-primary);">
+          <i data-lucide="credit-card"></i>
+        </div>
+        <div class="stat-info">
+          <h3>Tổng hạn mức được cấp</h3>
+          <p class="stat-value" id="val-hanmuc">0 đ</p>
+        </div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+          <i data-lucide="alert-circle"></i>
+        </div>
+        <div class="stat-info">
+          <h3>Tổng nợ hiện tại</h3>
+          <p class="stat-value" id="val-tongno" style="color: #ef4444;">0 đ</p>
+        </div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
+          <i data-lucide="check-circle"></i>
+        </div>
+        <div class="stat-info">
+          <h3>Hạn mức còn lại</h3>
+          <p class="stat-value" id="val-conlai" style="color: #10b981;">0 đ</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-card" style="margin-top: 1.5rem;">
+      <div class="section-header">
+        <div class="section-title">
+          <i data-lucide="history"></i>
+          Danh sách Đơn hàng chưa thanh toán
+        </div>
+      </div>
+      
+      <div style="overflow-x: auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Mã Đơn Hàng</th>
+              <th>Ngày Đặt</th>
+              <th>Số Tiền</th>
+              <th>Số Ngày Còn Nợ</th>
+              <th>Trạng Thái</th>
+              <th>Hành Động</th>
+            </tr>
+          </thead>
+          <tbody id="debt-table-body">
+            <tr>
+              <td colspan="5" style="text-align: center; color: var(--text-muted);">Đang tải danh sách công nợ...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Payment Modal -->
+  <div id="paymentModal" class="modal">
+    <div class="modal-content">
+      <i data-lucide="x" class="close-modal" onclick="closePaymentModal()"></i>
+      <h2>Thanh toán trực tuyến</h2>
+      <p style="color: var(--text-muted); margin-bottom: 1rem;">Vui lòng chuyển khoản với nội dung là Mã Đơn Hàng và tải biên lai lên đây.</p>
+      
+      <div class="bank-info">
+        <div><strong>Ngân hàng:</strong> Vietcombank</div>
+        <div><strong>Số TK:</strong> 0123456789</div>
+        <div><strong>Chủ TK:</strong> BAO THANH NIEN</div>
+        <div style="margin-top:0.5rem; color:var(--accent-primary)">
+          <strong>Số tiền:</strong> <span id="modal-amount">0 đ</span>
+        </div>
+        <div style="margin-top:0.5rem; color:var(--accent-primary)">
+          <strong>Nội dung CK:</strong> <span id="modal-content-ck"></span>
+        </div>
+      </div>
+
+      <div style="margin-top: 1.5rem;">
+        <label for="receiptFile" style="display:block; margin-bottom:0.5rem; font-weight:600;">Tải lên biên lai (Ảnh)</label>
+        <input type="file" id="receiptFile" accept="image/*" style="width:100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px;">
+      </div>
+
+      <div style="margin-top: 1.5rem; display: flex; justify-content: flex-end; gap: 1rem;">
+        <button class="btn btn-secondary" onclick="closePaymentModal()">Hủy</button>
+        <button class="btn btn-primary" id="btn-submit-receipt" onclick="submitReceipt()">Xác nhận nộp biên lai</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    lucide.createIcons();
+    requireAuth('AGENCY');
+
+    const tenHienThi = localStorage.getItem('tenHienThi') || 'Đại lý';
+    const makh = localStorage.getItem('makh') || '';
+    
+    document.getElementById('agency-makh').textContent = `Mã KH: ${makh}`;
+    document.getElementById('agency-avatar').textContent = tenHienThi.charAt(0).toUpperCase();
+
+    async function loadDebtInfo() {
+      const data = await apiGet('/agency/debt');
+      if (data && !data.error) {
+        document.getElementById('val-tongno').textContent = (data.tongNo || 0).toLocaleString('vi-VN') + ' đ';
+        document.getElementById('val-hanmuc').textContent = (data.hanMuc || 0).toLocaleString('vi-VN') + ' đ';
+        document.getElementById('val-conlai').textContent = (data.conLai || 0).toLocaleString('vi-VN') + ' đ';
+
+        const tbody = document.getElementById('debt-table-body');
+        if (!data.unpaidOrders || data.unpaidOrders.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Bạn không có khoản nợ nào.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = data.unpaidOrders.map(b => {
+          const date = new Date(b.created_at).toLocaleDateString('vi-VN');
+          
+          let badgeClass = 'badge-pending';
+          let badgeText = 'Còn nợ';
+          if (b.days_unpaid > 30) {
+              badgeClass = 'badge-failed';
+              badgeText = 'Quá hạn';
+          }
+          
+          return `
+            <tr>
+              <td><strong>${b.order_code}</strong></td>
+              <td>${date}</td>
+              <td style="color: var(--accent-primary); font-weight:600">${(b.amount || 0).toLocaleString('vi-VN')} đ</td>
+              <td>${b.days_unpaid} ngày</td>
+              <td><span class="badge ${badgeClass}">${badgeText}</span></td>
+              <td><button class="btn btn-primary" onclick="openPaymentModal(${b.id}, '${b.order_code}', ${b.amount || 0})" style="padding: 0.4rem 0.8rem; font-size: 0.875rem;">Nộp chứng từ</button></td>
+            </tr>
+          `;
+        }).join('');
+        lucide.createIcons();
+      } else if (data && data.error) {
+        document.getElementById('debt-table-body').innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Lỗi hệ thống: ${data.error}</td></tr>`;
+      }
+    }
+
+    let currentOrderId = null;
+
+    function openPaymentModal(id, orderCode, amount) {
+      currentOrderId = id;
+      document.getElementById('modal-amount').textContent = amount.toLocaleString('vi-VN') + ' đ';
+      document.getElementById('modal-content-ck').textContent = orderCode;
+      document.getElementById('receiptFile').value = '';
+      document.getElementById('paymentModal').style.display = 'block';
+    }
+
+    function closePaymentModal() {
+      document.getElementById('paymentModal').style.display = 'none';
+      currentOrderId = null;
+    }
+
+    async function submitReceipt() {
+      if (!currentOrderId) return;
+      const fileInput = document.getElementById('receiptFile');
+      if (!fileInput.files || fileInput.files.length === 0) {
+        alert("Vui lòng chọn ảnh biên lai chuyển khoản.");
+        return;
+      }
+      
+      const file = fileInput.files[0];
+      const formData = new FormData();
+      formData.append("file", file);
+
+      try {
+        document.getElementById('btn-submit-receipt').disabled = true;
+        document.getElementById('btn-submit-receipt').textContent = 'Đang tải...';
+        
+        const token = localStorage.getItem('token');
+        const res = await fetch(`/api/agency/orders/${currentOrderId}/upload-receipt`, {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + token
+          },
+          body: formData
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+          alert("Nộp chứng từ thành công! Đang chờ Admin xác nhận.");
+          closePaymentModal();
+          loadDebtInfo();
+        } else {
+          alert("Lỗi: " + (data.error || "Không thể tải lên"));
+        }
+      } catch (e) {
+        alert("Đã xảy ra lỗi hệ thống.");
+      } finally {
+        document.getElementById('btn-submit-receipt').disabled = false;
+        document.getElementById('btn-submit-receipt').textContent = 'Xác nhận nộp biên lai';
+      }
+    }
+
+    loadDebtInfo();
+  </script>
+</body>
+</html>

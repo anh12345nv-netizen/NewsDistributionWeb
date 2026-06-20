@@ -6,6 +6,7 @@
   <title>Agency Dashboard — News Distribution</title>
   <link rel="stylesheet" href="/css/dashboard-shared.css">
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="/js/api.js"></script>
 </head>
 <body>
@@ -31,6 +32,14 @@
         <a href="/agency/orders.html" class="nav-item">
           <i data-lucide="shopping-cart" class="nav-icon"></i>
           <span>Đơn hàng của tôi</span>
+        </a>
+        <a href="/agency/debt.html" class="nav-item">
+          <i data-lucide="wallet" class="nav-icon"></i>
+          <span>Công nợ</span>
+        </a>
+        <a href="/agency/requests.html" class="nav-item">
+          <i data-lucide="help-circle" class="nav-icon"></i>
+          <span>Lịch sử khiếu nại</span>
         </a>
       </div>
     </div>
@@ -93,7 +102,7 @@
       <div class="section-header">
         <div class="section-title">
           <i data-lucide="file-text"></i>
-          Hóa đơn phát hành gần đây (Từ WinForm)
+          Đơn đặt hàng phát hành gần đây
         </div>
       </div>
       
@@ -113,6 +122,34 @@
             </tr>
           </tbody>
         </table>
+      </div>
+    </div>
+    
+    <div class="layout-columns" style="margin-top: 1.5rem;">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">
+            <i data-lucide="bar-chart-2"></i>
+            Xu hướng đặt hàng (6 tháng gần nhất)
+          </div>
+        </div>
+        <div style="height: 300px;">
+          <canvas id="trendChart"></canvas>
+        </div>
+      </div>
+      
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">
+            <i data-lucide="bell"></i>
+            Thông báo / Nhắc nhở
+          </div>
+        </div>
+        <div id="notifications-panel" style="display: flex; flex-direction: column; gap: 10px;">
+          <div style="padding: 12px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid #3b82f6; border-radius: 4px; color: var(--text-primary);">
+            Đang tải thông báo...
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -137,16 +174,26 @@
 
         const tbody = document.getElementById('bills-table-body');
         if (data.donGanNhat.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Đại lý chưa phát sinh hóa đơn Winform nào.</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Đại lý chưa có đơn đặt hàng nào.</td></tr>`;
           return;
         }
 
         tbody.innerHTML = data.donGanNhat.map(b => {
           const date = new Date(b.ngayLapPhieu).toLocaleDateString('vi-VN');
-          const isPaid = b.thanhToan === true || b.thanhToan === 1 || b.thanhToan === "1";
-          const badgeClass = isPaid ? 'badge-success' : 'badge-pending';
-          const badgeText = isPaid ? 'Đã thanh toán' : 'Chưa thanh toán';
-          const badgeIcon = isPaid ? 'check-circle' : 'clock';
+          
+          let badgeClass = 'badge-pending';
+          let badgeText = 'Chờ duyệt';
+          let badgeIcon = 'clock';
+          
+          if (b.thanhToan === 'SYNCED') {
+            badgeClass = 'badge-success';
+            badgeText = 'Đã duyệt';
+            badgeIcon = 'check-circle';
+          } else if (b.thanhToan === 'FAILED') {
+            badgeClass = 'badge-failed';
+            badgeText = 'Lỗi / Hủy';
+            badgeIcon = 'x-circle';
+          }
           
           return `
             <tr>
@@ -160,8 +207,87 @@
         lucide.createIcons();
       }
     }
+    
+    async function loadTrendAndNotifications() {
+      const debtData = await apiGet('/agency/debt');
+      if (debtData) {
+        const panel = document.getElementById('notifications-panel');
+        let html = '';
+        if (debtData.tongNo > 0) {
+           html += `<div style="padding: 12px; background: rgba(239, 68, 68, 0.1); border-left: 4px solid #ef4444; border-radius: 4px; color: var(--text-primary);">
+            Bạn đang có dư nợ <strong>${debtData.tongNo.toLocaleString('vi-VN')} đ</strong>. Vui lòng thanh toán sớm để đảm bảo hạn mức.
+           </div>`;
+        }
+        if (debtData.conLai < debtData.hanMuc * 0.2) {
+           html += `<div style="padding: 12px; background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; border-radius: 4px; color: var(--text-primary);">
+            Cảnh báo: Hạn mức nợ của bạn sắp hết (chỉ còn ${debtData.conLai.toLocaleString('vi-VN')} đ).
+           </div>`;
+        }
+        if (!html) {
+           html = `<div style="color: var(--text-muted); font-size: 0.9rem;">Không có thông báo mới.</div>`;
+        }
+        panel.innerHTML = html;
+      }
+      
+      const trendData = await apiGet('/agency/analytics/trend');
+      if (trendData && trendData.length > 0) {
+        const labels = trendData.map(d => d.month);
+        const data = trendData.map(d => d.total);
+        new Chart(document.getElementById('trendChart').getContext('2d'), {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: 'Tổng giá trị đặt (VNĐ)',
+              data: data,
+              borderColor: '#3b82f6',
+              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+              borderWidth: 2,
+              fill: true,
+              tension: 0.3
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true } }
+          }
+        });
+
+        // Add performance comparison
+        if (data.length >= 2) {
+          const currentMonth = data[data.length - 1];
+          const previousMonth = data[data.length - 2];
+          let diff = 0;
+          let diffHtml = '';
+          if (previousMonth > 0) {
+            diff = ((currentMonth - previousMonth) / previousMonth) * 100;
+            if (diff > 0) {
+              diffHtml = `<div style="margin-top: 1rem; padding: 12px; background: rgba(16, 185, 129, 0.1); border-left: 4px solid #10b981; border-radius: 4px; color: var(--text-primary);">
+                📈 Tăng trưởng tốt: Doanh số tháng này <strong>+${diff.toFixed(1)}%</strong> so với tháng trước.
+              </div>`;
+            } else if (diff < 0) {
+              diffHtml = `<div style="margin-top: 1rem; padding: 12px; background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; border-radius: 4px; color: var(--text-primary);">
+                📉 Giảm sút: Doanh số tháng này <strong>${diff.toFixed(1)}%</strong> so với tháng trước.
+              </div>`;
+            } else {
+              diffHtml = `<div style="margin-top: 1rem; padding: 12px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid #3b82f6; border-radius: 4px; color: var(--text-primary);">
+                ➖ Ổn định: Doanh số tháng này bằng với tháng trước.
+              </div>`;
+            }
+          }
+          
+          if (diffHtml) {
+             const panel = document.getElementById('notifications-panel');
+             panel.innerHTML += diffHtml;
+          }
+        }
+      }
+    }
 
     loadDashboard();
+    loadTrendAndNotifications();
   </script>
 </body>
 </html>
