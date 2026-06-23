@@ -62,12 +62,14 @@ public class AnalyticsController {
             Integer totalOrders = jdbc.queryForObject("SELECT COUNT(*) FROM web_orders", Integer.class);
             Integer totalBao = jdbcC.queryForObject("SELECT COUNT(*) FROM m_bao", Integer.class);
             Integer totalLogs = jdbc.queryForObject("SELECT COUNT(*) FROM web_activity_log", Integer.class);
+            Double totalRevenue = jdbc.queryForObject("SELECT SUM(thanh_tien) FROM web_order_items i JOIN web_orders o ON i.order_id = o.id WHERE o.payment_status = 'PAID'", Double.class);
             
             return ResponseEntity.ok(Map.of(
                 "totalUsers", totalUsers != null ? totalUsers : 0,
                 "totalOrders", totalOrders != null ? totalOrders : 0,
                 "totalPublications", totalBao != null ? totalBao : 0,
-                "totalActivityLogs", totalLogs != null ? totalLogs : 0
+                "totalActivityLogs", totalLogs != null ? totalLogs : 0,
+                "totalRevenue", totalRevenue != null ? totalRevenue : 0.0
             ));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));

@@ -149,7 +149,7 @@
             <i data-lucide="dollar-sign"></i>
           </div>
           <div class="stat-info">
-            <div class="stat-label">Doanh Thu Web</div>
+            <div class="stat-label">Doanh Thu Bán Lẻ</div>
             <div class="stat-value" id="val-rev-web">—</div>
           </div>
         </div>
@@ -158,22 +158,46 @@
             <i data-lucide="wallet"></i>
           </div>
           <div class="stat-info">
-            <div class="stat-label">Doanh Thu Winform</div>
+            <div class="stat-label">Doanh Thu Đại Lý</div>
             <div class="stat-value" id="val-rev-winform">—</div>
+          </div>
+        </div>
+        <div class="stat-card" style="border-left: 4px solid var(--accent-success); background: rgba(34, 197, 94, 0.03); grid-column: 1 / -1;">
+          <div class="stat-icon-box" style="background: rgba(34, 197, 94, 0.15); color: var(--accent-success);">
+            <i data-lucide="banknote"></i>
+          </div>
+          <div class="stat-info">
+            <div class="stat-label" style="font-weight: 600; color: var(--accent-success); font-size: 14px;">TỔNG DOANH THU</div>
+            <div class="stat-value" id="val-rev-total" style="font-size: 26px; color: var(--accent-success);">—</div>
           </div>
         </div>
       </div>
 
       <!-- Charts Grid -->
       <div class="charts-grid">
-        <div class="chart-container full-width-chart">
-          <canvas id="mainBarChart"></canvas>
+        <div class="chart-container" style="grid-column: 1 / -1; height: 380px;">
+          <canvas id="lineChart"></canvas>
         </div>
-        <div class="chart-container">
+        <div class="chart-container" style="height: 380px;">
           <canvas id="doughnutChart"></canvas>
         </div>
-        <div class="chart-container">
-          <canvas id="lineChart"></canvas>
+        <div class="chart-container" style="display: flex; flex-direction: column; height: 380px;">
+          <h3 style="color: var(--text-main); font-size: 16px; font-weight: 600; margin-bottom: 20px; text-align: center;">So Sánh Kênh Phân Phối</h3>
+          <div style="flex: 1; overflow-x: auto;">
+            <table class="data-table" style="margin: 0; font-size: 14px; min-width: 100%;">
+              <thead>
+                <tr>
+                  <th style="background: var(--surface-light); text-align: center; padding: 12px 8px;">Kênh</th>
+                  <th style="background: var(--surface-light); text-align: center; padding: 12px 8px;">Số đơn</th>
+                  <th style="background: var(--surface-light); text-align: right; padding: 12px 8px;">Doanh thu</th>
+                  <th style="background: var(--surface-light); text-align: right; padding: 12px 8px;">Giá trị TB/đơn</th>
+                </tr>
+              </thead>
+              <tbody id="comparison-tbody">
+                <tr><td colspan="4" style="text-align:center; padding: 20px;">Đang tải...</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -245,12 +269,12 @@
     let doughnutChartInstance = null;
     let lineChartInstance = null;
 
-    Chart.defaults.color = '#94a3b8';
-    Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.05)';
+    Chart.defaults.color = '#475569';
+    Chart.defaults.borderColor = 'rgba(0, 0, 0, 0.05)';
 
     async function fetchOverviewStats() {
       try {
-        const response = await fetch('/api/accountant/stats/overview', {
+        const response = await fetch('/api/accountant/stats/overview?t=' + new Date().getTime(), {
           headers: { 'Authorization': 'Bearer ' + token }
         });
         if (response.status === 401 || response.status === 403) {
@@ -258,13 +282,23 @@
         }
         const data = await response.json();
         
-        document.getElementById('val-hoadon').innerText = data['m_hoa_don'] || 0;
-        document.getElementById('val-khachhang').innerText = data['m_khach_hang'] || 0;
-        document.getElementById('val-tonkho').innerText = data['m_ton_kho'] || 0;
-        document.getElementById('val-bao').innerText = data['m_bao'] || 0;
+        const valHoadon = data['m_hoa_don'] || 0;
+        const valKhachhang = data['m_khach_hang'] || 0;
+        const valTonkho = data['m_ton_kho'] || 0;
+        const valBao = data['m_bao'] || 0;
 
-        renderCharts(data);
+        document.getElementById('val-hoadon').innerText = valHoadon;
+        document.getElementById('val-hoadon').title = valHoadon;
+        document.getElementById('val-khachhang').innerText = valKhachhang;
+        document.getElementById('val-khachhang').title = valKhachhang;
+        document.getElementById('val-tonkho').innerText = valTonkho;
+        document.getElementById('val-tonkho').title = valTonkho;
+        document.getElementById('val-bao').innerText = valBao;
+        document.getElementById('val-bao').title = valBao;
+
+        // Xóa gọi renderCharts(data) ở đây vì biểu đồ bar đã bị xóa
         fetchRevenueStats();
+        fetchMonthlyRevenue();
       } catch (error) {
         console.error("Error fetching stats:", error);
       }
@@ -272,20 +306,63 @@
 
     async function fetchRevenueStats() {
       try {
-        const response = await fetch('/api/accountant/stats/revenue', {
+        const response = await fetch('/api/accountant/stats/revenue?t=' + new Date().getTime(), {
           headers: { 'Authorization': 'Bearer ' + token }
         });
         if (response.status === 200) {
           const data = await response.json();
-          document.getElementById('val-rev-web').innerText = formatCurrency(data['WEB'] || 0);
-          document.getElementById('val-rev-winform').innerText = formatCurrency(data['WINFORM'] || 0);
+          // Handle both old and new response formats safely
+          let webData = { revenue: 0, count: 0 };
+          let winData = { revenue: 0, count: 0 };
+          
+          if (data['WEB'] !== undefined && data['WEB'] !== null) {
+              if (typeof data['WEB'] === 'number') webData.revenue = data['WEB'];
+              else webData = data['WEB'];
+          }
+          if (data['WINFORM'] !== undefined && data['WINFORM'] !== null) {
+              if (typeof data['WINFORM'] === 'number') winData.revenue = data['WINFORM'];
+              else winData = data['WINFORM'];
+          }
+          
+          const valWeb = webData.revenue || 0;
+          const valWinform = winData.revenue || 0;
+          const totalRev = valWeb + valWinform;
+          
+          document.getElementById('val-rev-web').innerText = formatCurrency(valWeb);
+          document.getElementById('val-rev-web').title = formatCurrency(valWeb);
+          document.getElementById('val-rev-winform').innerText = formatCurrency(valWinform);
+          document.getElementById('val-rev-winform').title = formatCurrency(valWinform);
+          
+          const totalEl = document.getElementById('val-rev-total');
+          if (totalEl) totalEl.innerText = formatCurrency(totalRev);
+          
+          // Update Doughnut Chart (Web vs Winform Invoice Count)
+          const webCount = webData.count || 0;
+          const winCount = winData.count || 0;
+          updateDoughnutChart(webCount, winCount);
+          
+          // Update Comparison Table
+          let html = `
+            <tr>
+              <td style="text-align: center; padding: 12px 8px;"><span class="badge badge-info" style="font-size: 11px;">BÁN LẺ</span></td>
+              <td style="text-align: center; padding: 12px 8px; font-weight: 500;">${webCount}</td>
+              <td style="text-align: right; padding: 12px 8px; font-weight: 600; color: var(--text-main);">${formatCurrency(valWeb)}</td>
+              <td style="text-align: right; padding: 12px 8px;">${webCount > 0 ? formatCurrency(valWeb/webCount) : '0'}</td>
+            </tr>
+            <tr>
+              <td style="text-align: center; padding: 12px 8px;"><span class="badge badge-pending" style="font-size: 11px; color: var(--accent-purple); background: rgba(139, 92, 246, 0.08);">ĐẠI LÝ</span></td>
+              <td style="text-align: center; padding: 12px 8px; font-weight: 500;">${winCount}</td>
+              <td style="text-align: right; padding: 12px 8px; font-weight: 600; color: var(--text-main);">${formatCurrency(valWinform)}</td>
+              <td style="text-align: right; padding: 12px 8px;">${winCount > 0 ? formatCurrency(valWinform/winCount) : '0'}</td>
+            </tr>
+          `;
+          document.getElementById('comparison-tbody').innerHTML = html;
+          
         } else {
           const errText = await response.text();
           console.error("Revenue API Error:", response.status, errText);
           document.getElementById('val-rev-web').innerText = "Lỗi";
-          document.getElementById('val-rev-web').title = errText;
           document.getElementById('val-rev-winform').innerText = "Lỗi DB";
-          document.getElementById('val-rev-winform').title = errText;
         }
       } catch (error) {
         console.error("Error fetching revenue:", error);
@@ -294,60 +371,39 @@
       }
     }
 
+    async function fetchMonthlyRevenue() {
+      try {
+        const response = await fetch('/api/accountant/stats/monthly-revenue?t=' + new Date().getTime(), {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (response.status === 200) {
+          const data = await response.json();
+          const webData = data['WEB'] || Array(12).fill(0);
+          const winformData = data['WINFORM'] || Array(12).fill(0);
+          updateLineChart(webData, winformData);
+        }
+      } catch (error) {
+        console.error("Error fetching monthly revenue:", error);
+      }
+    }
+
     function formatCurrency(amount) {
       return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
     }
 
-    function renderCharts(data) {
-      const hd = data['m_hoa_don'] || 0;
-      const kh = data['m_khach_hang'] || 0;
-      const tk = data['m_ton_kho'] || 0;
-      const bao = data['m_bao'] || 0;
-
-      // 1. Bar Chart
-      const ctxBar = document.getElementById('mainBarChart').getContext('2d');
-      if (barChartInstance) barChartInstance.destroy();
-      
-      let gradientBar = ctxBar.createLinearGradient(0, 0, 0, 400);
-      gradientBar.addColorStop(0, 'rgba(59, 130, 246, 0.8)');   
-      gradientBar.addColorStop(1, 'rgba(59, 130, 246, 0.1)');
-
-      barChartInstance = new Chart(ctxBar, {
-        type: 'bar',
-        data: {
-          labels: ['Hóa đơn', 'Khách hàng', 'Tồn kho', 'Báo'],
-          datasets: [{
-            label: 'Tổng số lượng bản ghi',
-            data: [hd, kh, tk, bao],
-            backgroundColor: gradientBar,
-            borderColor: '#3b82f6',
-            borderWidth: 1,
-            borderRadius: 6
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            title: { display: true, text: 'Tổng quan Dữ liệu Hệ thống', color: '#f8fafc', font: {size: 16} }
-          }
-        }
-      });
-
-      // 2. Doughnut Chart
+    function updateDoughnutChart(webRev, winformRev) {
       const ctxDoughnut = document.getElementById('doughnutChart').getContext('2d');
       if (doughnutChartInstance) doughnutChartInstance.destroy();
       
       doughnutChartInstance = new Chart(ctxDoughnut, {
         type: 'doughnut',
         data: {
-          labels: ['Hóa đơn', 'Khách hàng', 'Tồn kho'],
+          labels: ['Bán Lẻ (Web)', 'Đại Lý (WinForm)'],
           datasets: [{
-            data: [hd, kh, tk],
+            data: [webRev, winformRev],
             backgroundColor: [
-              'rgba(168, 85, 247, 0.8)', // Purple
-              'rgba(34, 197, 94, 0.8)',  // Green
-              'rgba(249, 115, 22, 0.8)'  // Orange
+              'rgba(14, 165, 233, 0.8)', // Info Blue
+              'rgba(139, 92, 246, 0.8)'  // Purple
             ],
             borderColor: '#1e293b',
             borderWidth: 2
@@ -357,43 +413,86 @@
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            title: { display: true, text: 'Tỷ lệ Phân bổ Dữ liệu', color: '#f8fafc' },
-            legend: { position: 'bottom' }
+            title: { display: true, text: 'Tỷ lệ Số lượng Hóa đơn', color: '#1e293b', font: {size: 15, weight: 'bold'} },
+            legend: { position: 'bottom' },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  let val = context.raw;
+                  return ' ' + val.toLocaleString('vi-VN') + ' hóa đơn';
+                }
+              }
+            }
           }
         }
       });
+    }
 
-      // 3. Line Chart (Mock Trend)
+    function updateLineChart(webData, winformData) {
       const ctxLine = document.getElementById('lineChart').getContext('2d');
       if (lineChartInstance) lineChartInstance.destroy();
 
-      let gradientLine = ctxLine.createLinearGradient(0, 0, 0, 300);
-      gradientLine.addColorStop(0, 'rgba(34, 197, 94, 0.4)');
-      gradientLine.addColorStop(1, 'rgba(34, 197, 94, 0.0)');
+      let gradientWeb = ctxLine.createLinearGradient(0, 0, 0, 350);
+      gradientWeb.addColorStop(0, 'rgba(14, 165, 233, 0.4)');
+      gradientWeb.addColorStop(1, 'rgba(14, 165, 233, 0.0)');
+      
+      let gradientWin = ctxLine.createLinearGradient(0, 0, 0, 350);
+      gradientWin.addColorStop(0, 'rgba(139, 92, 246, 0.4)');
+      gradientWin.addColorStop(1, 'rgba(139, 92, 246, 0.0)');
 
       lineChartInstance = new Chart(ctxLine, {
         type: 'line',
         data: {
-          labels: ['T1', 'T2', 'T3', 'T4', 'T5', 'T6'],
-          datasets: [{
-            label: 'Biến động Doanh số (Mô phỏng)',
-            data: [12, 19, 15, 25, 22, 30],
-            borderColor: '#22c55e',
-            backgroundColor: gradientLine,
-            fill: true,
-            tension: 0.4,
-            borderWidth: 2,
-            pointBackgroundColor: '#22c55e'
-          }]
+          labels: ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'],
+          datasets: [
+            {
+              label: 'Doanh Thu Web',
+              data: webData,
+              borderColor: '#0ea5e9',
+              backgroundColor: gradientWeb,
+              fill: true,
+              tension: 0.4,
+              borderWidth: 2,
+              pointBackgroundColor: '#0ea5e9'
+            },
+            {
+              label: 'Doanh Thu WinForm',
+              data: winformData,
+              borderColor: '#8b5cf6',
+              backgroundColor: gradientWin,
+              fill: true,
+              tension: 0.4,
+              borderWidth: 2,
+              pointBackgroundColor: '#8b5cf6'
+            }
+          ]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            title: { display: true, text: 'Xu hướng Doanh số', color: '#f8fafc' },
-            legend: { display: false }
+            title: { display: true, text: 'Doanh Thu Theo Tháng (VNĐ)', color: '#1e293b', font: {size: 16, weight: 'bold'} },
+            legend: { position: 'top' },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  let val = context.raw;
+                  return context.dataset.label + ': ' + new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
+                }
+              }
+            }
           },
           scales: {
+            y: { 
+              beginAtZero: true,
+              ticks: {
+                callback: function(value) {
+                  if (value >= 1000000) return (value / 1000000) + 'tr';
+                  if (value >= 1000) return (value / 1000) + 'k';
+                  return value;
+                }
+              }
+            },
             x: { grid: { display: false } }
           }
         }
@@ -428,9 +527,9 @@
           if (k.toUpperCase() === 'SOURCE' && val) {
             const valStr = val.toString().toUpperCase();
             if (valStr === 'WEB') {
-              val = `<span class="badge badge-info">${valStr}</span>`;
+              val = `<span class="badge badge-info">BÁN LẺ</span>`;
             } else if (valStr === 'WINFORM') {
-              val = `<span class="badge badge-pending" style="background: rgba(139, 92, 246, 0.08); color: var(--accent-purple);">${valStr}</span>`;
+              val = `<span class="badge badge-pending" style="background: rgba(139, 92, 246, 0.08); color: var(--accent-purple);">ĐẠI LÝ</span>`;
             }
           } else if (k.toUpperCase() === 'THANHTOAN') {
             const valStr = val.toString().toLowerCase();

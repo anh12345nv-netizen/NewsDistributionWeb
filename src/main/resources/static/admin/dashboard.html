@@ -220,6 +220,15 @@
             <div class="stat-value" id="val-revenue">—</div>
           </div>
         </div>
+        <div class="stat-card" style="border-left: 4px solid #f59e0b;">
+          <div class="stat-icon-box" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">
+            <i data-lucide="banknote"></i>
+          </div>
+          <div class="stat-info">
+            <div class="stat-label">Tổng Doanh Thu Web</div>
+            <div class="stat-value" id="val-total-rev" style="color: #f59e0b;">—</div>
+          </div>
+        </div>
       </div>
 
       <!-- Comparison Box -->
@@ -614,6 +623,9 @@
       if (data) {
         document.getElementById('val-users').textContent = data.totalUsers.toLocaleString();
         document.getElementById('val-orders').textContent = data.totalOrders.toLocaleString();
+        if (document.getElementById('val-total-rev') && data.totalRevenue) {
+           document.getElementById('val-total-rev').textContent = data.totalRevenue.toLocaleString('vi-VN', {style: 'currency', currency: 'VND'});
+        }
       }
     }
 

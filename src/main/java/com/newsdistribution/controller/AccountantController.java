@@ -30,12 +30,15 @@ public class AccountantController {
         }
 
         try {
-            // Retrieve all records for Accountant Audit
-            String sql = "SELECT * FROM " + tableName;
+            String sql;
             if (tableName.equalsIgnoreCase("m_hoa_don")) {
-                sql += " ORDER BY ngayLapPhieu DESC, sohd DESC";
+                sql = "SELECT TOP 500 * FROM m_hoa_don WITH (NOLOCK) ORDER BY ngayLapPhieu DESC, sohd DESC";
+            } else if (tableName.equalsIgnoreCase("m_ton_kho")) {
+                sql = "SELECT TOP 1000 * FROM m_ton_kho WITH (NOLOCK) ORDER BY ngay DESC, maBao ASC";
             } else if (tableName.equalsIgnoreCase("web_orders")) {
-                sql += " ORDER BY created_at DESC";
+                sql = "SELECT TOP 500 * FROM web_orders WITH (NOLOCK) ORDER BY created_at DESC";
+            } else {
+                sql = "SELECT * FROM " + tableName + " WITH (NOLOCK)";
             }
             List<Map<String, Object>> data = jdbcC.queryForList(sql);
             return ResponseEntity.ok(data);
@@ -73,27 +76,64 @@ public class AccountantController {
     @GetMapping("/stats/revenue")
     public ResponseEntity<?> getRevenueStats() {
         try {
-            String sql = "SELECT source, SUM(tong_tien) as revenue FROM m_hoa_don WHERE source IS NOT NULL GROUP BY source";
+            // Only sum paid invoices (thanhToan = 1)
+            String sql = "SELECT source, SUM(tong_tien) as revenue, COUNT(DISTINCT sohd) as count FROM m_hoa_don WHERE source IS NOT NULL AND thanhToan = 1 GROUP BY source";
             List<Map<String, Object>> rows = jdbcC.queryForList(sql);
-            Map<String, Double> revenue = new HashMap<>();
-            revenue.put("WEB", 0.0);
-            revenue.put("WINFORM", 0.0);
+            Map<String, Map<String, Object>> revenue = new HashMap<>();
+            
+            Map<String, Object> webData = new HashMap<>();
+            webData.put("revenue", 0.0);
+            webData.put("count", 0);
+            revenue.put("WEB", webData);
+            
+            Map<String, Object> winformData = new HashMap<>();
+            winformData.put("revenue", 0.0);
+            winformData.put("count", 0);
+            revenue.put("WINFORM", winformData);
             
             for (Map<String, Object> row : rows) {
                 String source = (String) row.get("source");
                 Number rev = (Number) row.get("revenue");
-                if (source != null && rev != null) {
-                    revenue.put(source.toUpperCase(), rev.doubleValue());
+                Number count = (Number) row.get("count");
+                if (source != null) {
+                    Map<String, Object> data = new HashMap<>();
+                    data.put("revenue", rev != null ? rev.doubleValue() : 0.0);
+                    data.put("count", count != null ? count.intValue() : 0);
+                    revenue.put(source.trim().toUpperCase(), data);
                 }
             }
             return ResponseEntity.ok(revenue);
         } catch (Exception e) {
-            try {
-                java.io.PrintWriter pw = new java.io.PrintWriter("C:\\Users\\Admin\\Desktop\\error.txt");
-                e.printStackTrace(pw);
-                pw.close();
-            } catch (Exception ex) {}
             return ResponseEntity.status(500).body(Map.of("error", String.valueOf(e.getMessage())));
+        }
+    }
+
+    @GetMapping("/stats/monthly-revenue")
+    public ResponseEntity<?> getMonthlyRevenue() {
+        try {
+            // Only sum paid invoices (thanhToan = 1)
+            String sql = "SELECT source, MONTH(ngayLapPhieu) as month, SUM(tong_tien) as revenue " +
+                         "FROM m_hoa_don WHERE source IS NOT NULL AND thanhToan = 1 GROUP BY source, MONTH(ngayLapPhieu)";
+            List<Map<String, Object>> rows = jdbcC.queryForList(sql);
+            
+            Map<String, double[]> monthly = new HashMap<>();
+            monthly.put("WEB", new double[12]);
+            monthly.put("WINFORM", new double[12]);
+            
+            for (Map<String, Object> row : rows) {
+                String source = (String) row.get("source");
+                Number month = (Number) row.get("month");
+                Number rev = (Number) row.get("revenue");
+                if (source != null && month != null && rev != null) {
+                    String src = source.trim().toUpperCase();
+                    if (monthly.containsKey(src)) {
+                        monthly.get(src)[month.intValue() - 1] = rev.doubleValue();
+                    }
+                }
+            }
+            return ResponseEntity.ok(monthly);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
         }
     }
 

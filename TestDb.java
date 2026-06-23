@@ -8,15 +8,19 @@ public class TestDb {
         String pass = "YourPassword123";
         
         try (Connection conn = DriverManager.getConnection(url, user, pass)) {
-            String sql = "SELECT o.id, o.order_code, o.created_at, DATEDIFF(day, o.created_at, GETDATE()) as days_unpaid, " +
-            "(SELECT ISNULL(SUM(thanh_tien),0) FROM web_order_items i WHERE i.order_id = o.id) as amount " +
-            "FROM web_orders o WHERE o.makh = 'DL001' AND (o.payment_status IS NULL OR o.payment_status = 'UNPAID')";
-            
-            try (Statement stmt = conn.createStatement();
-                 ResultSet rs = stmt.executeQuery(sql)) {
-                System.out.println("Query executed successfully!");
+            System.out.println("Checking sync_log...");
+            String sql1 = "SELECT TOP 5 * FROM sync_log ORDER BY id DESC";
+            try (Statement stmt = conn.createStatement(); ResultSet rs = stmt.executeQuery(sql1)) {
                 while (rs.next()) {
-                    System.out.println(rs.getInt("id") + " - " + rs.getObject("amount"));
+                    System.out.println(rs.getString("table_name") + " - " + rs.getString("status") + " - " + rs.getString("error_msg"));
+                }
+            }
+            
+            System.out.println("Checking m_hoa_don WEB revenue...");
+            String sql2 = "SELECT source, SUM(tong_tien) as revenue, COUNT(*) as cnt FROM m_hoa_don GROUP BY source";
+            try (Statement stmt = conn.createStatement(); ResultSet rs = stmt.executeQuery(sql2)) {
+                while (rs.next()) {
+                    System.out.println(rs.getString("source") + " - Rev: " + rs.getObject("revenue") + " - Count: " + rs.getInt("cnt"));
                 }
             }
         } catch (Exception e) {
