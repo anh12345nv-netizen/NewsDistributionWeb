@@ -1,0 +1,8 @@
+# File mẫu cấu hình bí mật cho máy local
+# Hướng dẫn: Copy file này, đổi tên thành application-local.yml
+# rồi điền thông tin thật vào. File đó sẽ KHÔNG được commit lên Git.
+
+ai:
+  gemini:
+    # Lấy API Key miễn phí tại: https://aistudio.google.com/apikey
+    api-key: "YOUR_GEMINI_API_KEY_HERE"
