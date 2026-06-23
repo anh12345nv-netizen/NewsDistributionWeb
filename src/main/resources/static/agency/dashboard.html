@@ -33,10 +33,7 @@
           <i data-lucide="shopping-cart" class="nav-icon"></i>
           <span>Đơn hàng của tôi</span>
         </a>
-        <a href="/agency/debt.html" class="nav-item">
-          <i data-lucide="wallet" class="nav-icon"></i>
-          <span>Công nợ</span>
-        </a>
+        
         <a href="/agency/requests.html" class="nav-item">
           <i data-lucide="help-circle" class="nav-icon"></i>
           <span>Lịch sử khiếu nại</span>
@@ -209,25 +206,8 @@
     }
     
     async function loadTrendAndNotifications() {
-      const debtData = await apiGet('/agency/debt');
-      if (debtData) {
-        const panel = document.getElementById('notifications-panel');
-        let html = '';
-        if (debtData.tongNo > 0) {
-           html += `<div style="padding: 12px; background: rgba(239, 68, 68, 0.1); border-left: 4px solid #ef4444; border-radius: 4px; color: var(--text-primary);">
-            Bạn đang có dư nợ <strong>${debtData.tongNo.toLocaleString('vi-VN')} đ</strong>. Vui lòng thanh toán sớm để đảm bảo hạn mức.
-           </div>`;
-        }
-        if (debtData.conLai < debtData.hanMuc * 0.2) {
-           html += `<div style="padding: 12px; background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; border-radius: 4px; color: var(--text-primary);">
-            Cảnh báo: Hạn mức nợ của bạn sắp hết (chỉ còn ${debtData.conLai.toLocaleString('vi-VN')} đ).
-           </div>`;
-        }
-        if (!html) {
-           html = `<div style="color: var(--text-muted); font-size: 0.9rem;">Không có thông báo mới.</div>`;
-        }
-        panel.innerHTML = html;
-      }
+      const panel = document.getElementById('notifications-panel');
+      let html = '';
       
       const trendData = await apiGet('/agency/analytics/trend');
       if (trendData && trendData.length > 0) {
@@ -289,5 +269,7 @@
     loadDashboard();
     loadTrendAndNotifications();
   </script>
+  <script src="/js/chatbot.js"></script>
 </body>
 </html>
+

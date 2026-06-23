@@ -4,6 +4,8 @@ server:
 spring:
   application:
     name: news-distribution-api
+  profiles:
+    include: local
   jpa:
     hibernate:
       ddl-auto: update
@@ -58,3 +60,7 @@ sync:
 admin:
   notification:
     email: "anh12345nv@gmail.com" #thay mail muốn nhận thông báo tại đây 
+
+ai:
+  gemini:
+    api-key: ${GEMINI_API_KEY:}

@@ -32,10 +32,7 @@
           <i data-lucide="shopping-cart" class="nav-icon"></i>
           <span>Đơn hàng của tôi</span>
         </a>
-        <a href="/agency/debt.html" class="nav-item">
-          <i data-lucide="wallet" class="nav-icon"></i>
-          <span>Công nợ</span>
-        </a>
+        
         <a href="/agency/requests.html" class="nav-item">
           <i data-lucide="help-circle" class="nav-icon"></i>
           <span>Lịch sử khiếu nại</span>
@@ -307,10 +304,11 @@
 
       const res = await apiPost('/agency/orders', body);
       if (res && res.orderCode) {
-        alert(`Đặt đơn hàng thành công! Mã đơn: ${res.orderCode}`);
+        let totalAmt = cart.reduce((acc, item) => acc + (item.soLuong * item.donGia), 0);
+        alert(`Đặt đơn hàng thành công! Chuyển hướng tới trang thanh toán trực tuyến.`);
         cart = [];
         renderCart();
-        window.location.href = '/agency/orders.html';
+        window.location.href = `/agency/payment.html?id=${res.id}&code=${res.orderCode}&total=${totalAmt}`;
       } else {
         alert(res.error ? `Lỗi: ${res.error}` : 'Đã xảy ra lỗi khi tạo đơn hàng.');
       }
@@ -379,3 +377,4 @@
   </script>
 </body>
 </html>
+

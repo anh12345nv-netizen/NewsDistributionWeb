@@ -33,10 +33,7 @@
           <i data-lucide="shopping-cart" class="nav-icon"></i>
           <span>Đơn hàng của tôi</span>
         </a>
-        <a href="/agency/debt.html" class="nav-item">
-          <i data-lucide="wallet" class="nav-icon"></i>
-          <span>Công nợ</span>
-        </a>
+        
         <a href="/agency/requests.html" class="nav-item">
           <i data-lucide="help-circle" class="nav-icon"></i>
           <span>Lịch sử khiếu nại</span>
@@ -123,6 +120,9 @@
           </button>
           <button class="btn-refresh" style="background: #f59e0b; color: white;" onclick="downloadPDF()">
             <i data-lucide="download"></i> Tải PDF Hóa Đơn
+          </button>
+          <button class="btn-refresh" style="background: #ef4444; color: white; display:none;" id="btn-pay-online">
+            <i data-lucide="qr-code"></i> Xem QR Thanh Toán
           </button>
           <button class="btn-refresh" style="background: #3b82f6; color: white;" onclick="openAgencyRequestModal()">
             <i data-lucide="help-circle"></i> Gửi Khiếu Nại / Hỗ Trợ
@@ -254,6 +254,14 @@
       } else {
         btnConfirm.style.display = 'none';
       }
+
+      const btnPay = document.getElementById('btn-pay-online');
+      if (order.paymentStatus !== 'PAID') {
+        btnPay.style.display = 'inline-flex';
+        // We will attach the click handler after calculating total
+      } else {
+        btnPay.style.display = 'none';
+      }
       
       document.getElementById('det-note').textContent = order.ghiChu || '—';
 
@@ -275,6 +283,11 @@
       }).join('');
 
       document.getElementById('det-total').textContent = total.toLocaleString('vi-VN') + ' đ';
+      
+      if (order.paymentStatus !== 'PAID') {
+         btnPay.onclick = () => window.location.href = `/agency/payment.html?id=${order.id}&code=${order.orderCode}&total=${total}`;
+      }
+      
       lucide.createIcons();
     }
 
@@ -343,6 +356,8 @@
       }
     }
 
+    // payOnline logic was removed, we just redirect directly now.
+
     function downloadPDF() {
       const orderCode = document.getElementById('det-code').textContent;
       if (!orderCode || orderCode === '—') return;
@@ -391,3 +406,4 @@
   </script>
 </body>
 </html>
+

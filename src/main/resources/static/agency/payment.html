@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thanh Toán QR — News Distribution</title>
+  <link rel="stylesheet" href="/css/dashboard-shared.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/js/api.js"></script>
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <a href="/agency/dashboard.html" class="sidebar-brand">
+      <img src="/images/logo.png" alt="Logo" class="sidebar-brand-logo">
+      <div class="sidebar-brand-text">News<span>Distribution</span></div>
+    </a>
+
+    <div class="nav-section">
+      <div class="nav-section-label">Khách bán lẻ</div>
+      <div class="nav-links">
+        <a href="/agency/dashboard.html" class="nav-item">
+          <i data-lucide="layout-dashboard" class="nav-icon"></i>
+          <span>Dashboard</span>
+        </a>
+        <a href="/agency/publications.html" class="nav-item">
+          <i data-lucide="newspaper" class="nav-icon"></i>
+          <span>Đặt mua báo</span>
+        </a>
+        <a href="/agency/orders.html" class="nav-item">
+          <i data-lucide="shopping-cart" class="nav-icon"></i>
+          <span>Đơn hàng của tôi</span>
+        </a>
+        <a href="/agency/requests.html" class="nav-item">
+          <i data-lucide="help-circle" class="nav-icon"></i>
+          <span>Lịch sử khiếu nại</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="nav-logout">
+      <button class="nav-item" onclick="logout()">
+        <i data-lucide="log-out" class="nav-icon"></i>
+        <span>Đăng xuất</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1>Thanh toán trực tuyến</h1>
+        <p class="page-subtitle">Sử dụng Mobile Banking để quét mã QR</p>
+      </div>
+      <div class="user-profile-pill">
+        <div class="user-avatar" id="agency-avatar">K</div>
+        <span id="agency-makh">—</span>
+      </div>
+    </div>
+
+    <div class="layout-columns" style="justify-content: center; display: flex;">
+      <div class="section-card" style="max-width: 500px; width: 100%; text-align: center; margin-top: 2rem;">
+        <div class="section-header" style="justify-content: center; border-bottom: none;">
+          <div class="section-title" style="font-size: 1.25rem;">
+            <i data-lucide="qr-code"></i>
+            Quét mã QR để Thanh Toán
+          </div>
+        </div>
+        
+        <p style="color: var(--text-muted); margin-bottom: 20px;">Vui lòng quét mã QR dưới đây bằng ứng dụng Ngân hàng để thanh toán nhanh chóng.</p>
+        
+        <!-- Loading spinner placeholder -->
+        <div id="qr-loading" style="padding: 40px; color: var(--text-muted);">Đang tạo mã QR...</div>
+        
+        <img id="qr-image" src="" alt="Mã QR Thanh Toán SePay" style="width: 250px; max-width: 100%; border: 1px solid var(--border-light); border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: none;">
+        
+        <div style="background: rgba(59, 130, 246, 0.05); padding: 15px; border-radius: 8px; text-align: left; margin-bottom: 25px;">
+          <div class="detail-item"><strong>Mã Đơn Hàng (Nội dung):</strong> <span id="pay-code" style="color:var(--accent-primary); font-weight:600">—</span></div>
+          <div class="detail-item" style="margin-top: 8px;"><strong>Số tiền cần thanh toán:</strong> <span id="pay-total" style="color:#ef4444; font-weight:bold; font-size: 1.1rem;">—</span></div>
+          <div class="detail-item" style="margin-top: 8px;"><strong>Trạng thái:</strong> <span class="badge badge-pending">Chờ xác nhận thanh toán</span></div>
+        </div>
+
+        <button class="btn-refresh" style="background: #10b981; color: white; width: 100%; justify-content: center; padding: 12px; font-size: 1rem;" onclick="confirmPaid()">
+          <i data-lucide="check-circle"></i> Tôi đã hoàn tất chuyển khoản
+        </button>
+        <button class="btn-refresh" style="background: var(--bg-main); color: var(--text-primary); border: 1px solid var(--border-light); width: 100%; justify-content: center; padding: 12px; font-size: 1rem; margin-top: 10px;" onclick="window.location.href='/agency/orders.html'">
+          <i data-lucide="arrow-left"></i> Trở về Danh sách Đơn hàng
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    lucide.createIcons();
+    requireAuth('AGENCY');
+
+    const tenHienThi = localStorage.getItem('tenHienThi') || 'Khách hàng';
+    const makh = localStorage.getItem('makh') || '';
+    document.getElementById('agency-makh').textContent = `Mã KH: ${makh}`;
+    document.getElementById('agency-avatar').textContent = tenHienThi.charAt(0).toUpperCase();
+
+    // Parse URL Params
+    const urlParams = new URLSearchParams(window.location.search);
+    const orderId = urlParams.get('id');
+    const orderCode = urlParams.get('code');
+    const totalAmt = urlParams.get('total');
+
+    if (!orderId || !orderCode || !totalAmt) {
+      alert('Không tìm thấy thông tin đơn hàng!');
+      window.location.href = '/agency/orders.html';
+    } else {
+      document.getElementById('pay-code').textContent = orderCode;
+      document.getElementById('pay-total').textContent = Number(totalAmt).toLocaleString('vi-VN') + ' đ';
+
+      // Generate SePay QR Code
+      // Bank and Account number are mock values per user approval
+      const bank = 'MBBank';
+      const acc = '0000000000000'; // Fake Account Number
+      const amount = totalAmt;
+      const des = orderCode; // Content of transfer
+      
+      const qrUrl = `https://qr.sepay.vn/img?acc=${acc}&bank=${bank}&amount=${amount}&des=${des}`;
+      
+      const img = document.getElementById('qr-image');
+      img.onload = () => {
+        document.getElementById('qr-loading').style.display = 'none';
+        img.style.display = 'inline-block';
+      };
+      img.src = qrUrl;
+    }
+
+    async function confirmPaid() {
+      // Vì đang thiết lập mô phỏng chưa có webhook tự động, 
+      // ta sẽ gọi thẳng tới API pay-online để đổi trạng thái thành PAID
+      try {
+        const response = await fetch('/api/agency/orders/' + orderId + '/pay-online', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + localStorage.getItem('accessToken') }
+        });
+        if (response.ok) {
+          alert('Cảm ơn bạn! Hệ thống đã ghi nhận trạng thái thanh toán.');
+          window.location.href = '/agency/orders.html';
+        } else {
+          alert('Có lỗi xảy ra khi cập nhật thanh toán!');
+        }
+      } catch (e) {
+        alert('Lỗi: ' + e.message);
+      }
+    }
+  </script>
+</body>
+</html>

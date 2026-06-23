@@ -109,6 +109,26 @@ public class AgencyController {
         }
     }
 
+    @PostMapping("/orders/{id}/pay-online")
+    public ResponseEntity<?> payOnline(@PathVariable Integer id, Authentication auth) {
+        try {
+            String makh = getMakh(auth);
+            Integer count = jdbcB.queryForObject("SELECT COUNT(*) FROM web_orders WHERE id = ? AND makh = ?", Integer.class, id, makh);
+            if (count == null || count == 0) return ResponseEntity.badRequest().body(Map.of("error", "Order not found"));
+            
+            jdbcB.update("UPDATE web_orders SET payment_status = 'PAID' WHERE id = ?", id);
+            
+            String orderCode = jdbcB.queryForObject("SELECT order_code FROM web_orders WHERE id = ?", String.class, id);
+            String username = SecurityContextHolder.getContext().getAuthentication().getName();
+            jdbcB.update("INSERT INTO web_order_history (order_code, nguoi_thuc_hien, loai_hanh_dong, ghi_chu_chi_tiet) VALUES (?, ?, ?, ?)",
+                orderCode, username + " (Khách hàng)", "THANH TOÁN ONLINE", "Đã thanh toán trực tuyến thành công");
+                
+            return ResponseEntity.ok(Map.of("success", true));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @GetMapping("/debt")
     public ResponseEntity<?> getDebt(Authentication auth) {
         try {
