@@ -58,8 +58,8 @@ Mở trình duyệt và truy cập: `http://localhost:8080`
 
 | Vai trò | Tên đăng nhập | Mật khẩu |
 |---------|---------------|----------|
-| Admin | admin | admin123 |
-| Kế toán | accountant | 123456 |
+| Admin | admin | admin@123 |
+| Kế toán | ketoan01 | 123 |
 | Khách hàng | (tạo từ hệ thống) | — |
 
 ---
